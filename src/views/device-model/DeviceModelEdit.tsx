@@ -5,7 +5,8 @@ import { deviceModelService } from '../../services/deviceModelService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import type { DeviceModel, DeviceModelFormData } from '../../types/models';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import type { DeviceModelFormData } from '../../types/models';
 
 const DeviceModelEdit: React.FC = () => {
   const navigate = useNavigate();
@@ -123,72 +124,74 @@ const DeviceModelEdit: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Device Models</span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Edit Device Model</h1>
-            <p className="text-gray-600">Update device model information</p>
-          </div>
         </div>
-
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="error" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Device Model Name *
-              </label>
-              <Input
-                id="name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter device model name (e.g., GT06N, ST901, etc.)"
-                error={errors.name}
-                className="w-full"
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit Device Model</CardTitle>
+            <CardDescription>Update device model information</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Error Alert */}
+            {error && (
+              <Alert variant="error" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-            {/* Help Text */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Device Model Information</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Device models help categorize GPS tracking devices</li>
-                <li>• Use clear, descriptive names (e.g., "GT06N", "ST901A", "Concox GT06")</li>
-                <li>• This helps in device management and troubleshooting</li>
-              </ul>
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Name Field */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Device Model Name *
+                </label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Enter device model name (e.g., GT06N, ST901, etc.)"
+                  error={errors.name}
+                  className="w-full"
+                />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
+              </div>
 
-            {/* Form Actions */}
-            <div className="flex space-x-3 pt-6 border-t border-gray-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/admin/device-models')}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="flex items-center space-x-2"
-              >
-                <Save className="h-4 w-4" />
-                <span>{loading ? 'Updating...' : 'Update Device Model'}</span>
-              </Button>
-            </div>
-          </form>
-        </div>
+              {/* Help Text */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Device Model Information</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Device models help categorize GPS tracking devices</li>
+                  <li>• Use clear, descriptive names (e.g., "GT06N", "ST901A", "Concox GT06")</li>
+                  <li>• This helps in device management and troubleshooting</li>
+                </ul>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex space-x-3 pt-6 border-t border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate('/admin/device-models')}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex items-center space-x-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>{loading ? 'Updating...' : 'Update Device Model'}</span>
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

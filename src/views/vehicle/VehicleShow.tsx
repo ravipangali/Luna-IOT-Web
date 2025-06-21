@@ -73,8 +73,8 @@ export const VehicleShow: React.FC = () => {
       const response = await vehicleController.getVehicle(imei);
       if (response && response.data) {
         const vehicleData: ExtendedVehicle = {
-            ...response.data, // This is the Vehicle object
-            users: response.users // This is the users object
+            ...response.data.data, 
+            users: response.data.users
         };
         setVehicle(vehicleData);
       }
@@ -304,7 +304,7 @@ export const VehicleShow: React.FC = () => {
           </Button>
           <div className="flex items-center gap-2">
             <Link to={`/vehicles/${imei}/edit`}>
-              <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button variant="primary" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <FontAwesomeIcon icon={faEdit} className="mr-2" />
                 Edit Vehicle
               </Button>

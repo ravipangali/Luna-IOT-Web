@@ -17,9 +17,9 @@ class VehicleController {
     }
   }
 
-  async getVehicle(imei: string): Promise<VehicleDetailsResponse> {
+  async getVehicle(imei: string): Promise<ApiResponse<VehicleDetailsResponse>> {
     try {
-      const response = await apiService.get<VehicleDetailsResponse>(
+      const response = await apiService.get<ApiResponse<VehicleDetailsResponse>>(
         API_CONFIG.ENDPOINTS.VEHICLE(imei)
       );
       return response;

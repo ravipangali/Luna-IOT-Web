@@ -6,6 +6,7 @@ import { userController } from '../../controllers';
 import type { UserFormData, Role, User } from '../../types/models';
 import { Role as RoleEnum } from '../../types/models';
 import { toast } from 'react-toastify';
+import { apiService } from '../../services/apiService';
 
 export const UserEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();

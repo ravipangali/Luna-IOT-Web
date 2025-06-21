@@ -67,7 +67,8 @@ export const DeviceIndex: React.FC = () => {
     }
 
     try {
-      await deviceController.deleteDevice(device.id!);
+      await deviceController.deleteDevice(device.id!.toString());
+      toast.success(`Device with IMEI ${device.imei} deleted successfully.`);
       loadDevices(currentPage);
     } catch (error) {
       console.error('Error deleting device:', error);

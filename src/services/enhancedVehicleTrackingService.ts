@@ -488,7 +488,7 @@ class EnhancedVehicleTrackingService {
       const vehicleResponse = await vehicleController.getVehicle(imei);
       if (!vehicleResponse.success || !vehicleResponse.data) return;
 
-      const vehicle = vehicleResponse.data as Vehicle;
+      const vehicle = vehicleResponse.data.data;
       
       // Get latest GPS data
       const gpsResponse = await gpsController.getLatestGPSDataByIMEI(imei);

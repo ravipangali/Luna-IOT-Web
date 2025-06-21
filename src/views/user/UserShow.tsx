@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faEdit, faTrash, faUser, faEnvelope, faPhone, faUserTag } from '@fortawesome/free-solid-svg-icons';
 import { userController } from '../../controllers';
@@ -10,6 +10,7 @@ export const UserShow: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -38,12 +39,13 @@ export const UserShow: React.FC = () => {
     }
 
     try {
-      await userController.deleteUser(user.id!);
-      window.location.href = '/admin/users';
-          } catch (error) {
-        console.error('Error deleting user:', error);
-        toast.error('Error deleting user. Please try again.');
-      }
+      await userController.deleteUser(user.id!.toString());
+      toast.success(`User ${user.name} deleted successfully.`);
+      navigate('/admin/users');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Error deleting user. Please try again.');
+    }
   };
 
   if (loading) {

@@ -359,8 +359,8 @@ const IndividualVehicleTracking: React.FC = () => {
 
       // Handle vehicle info
       if (vehicleResponse.success && vehicleResponse.data) {
-        setVehicleInfo(vehicleResponse.data);
-        console.log('✅ Vehicle info loaded:', vehicleResponse.data);
+        setVehicleInfo(vehicleResponse.data.data);
+        console.log('✅ Vehicle info loaded:', vehicleResponse.data.data);
       } else {
         throw new Error(vehicleResponse.message || 'Vehicle not found');
       }

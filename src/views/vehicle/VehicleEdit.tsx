@@ -41,7 +41,7 @@ export const VehicleEdit: React.FC = () => {
         setLoadingData(true);
         const response = await vehicleController.getVehicle(imei);
         if (response && response.data) {
-          const vehicleData = response.data;
+          const vehicleData = response.data.data;
           setFormData({
             imei: vehicleData.imei,
             reg_no: vehicleData.reg_no,
@@ -55,8 +55,8 @@ export const VehicleEdit: React.FC = () => {
           if (vehicleData.device) {
             setDeviceInfo(vehicleData.device);
           }
-          if (response.users) {
-            const allUsers = [...response.users.main_users, ...response.users.shared_users];
+          if (response.data.users) {
+            const allUsers = [...response.data.users.main_users, ...response.data.users.shared_users];
             setUserAccessList(allUsers);
             const mainUser = allUsers.find(ua => ua.is_main_user);
             if (mainUser) {

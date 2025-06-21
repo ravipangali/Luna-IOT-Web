@@ -67,7 +67,8 @@ export const UserIndex: React.FC = () => {
     }
 
     try {
-      await userController.deleteUser(user.id!);
+      await userController.deleteUser(user.id!.toString());
+      toast.success(`User ${user.name} deleted successfully.`);
       loadUsers(currentPage);
     } catch (error) {
       console.error('Error deleting user:', error);

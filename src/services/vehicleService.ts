@@ -17,13 +17,14 @@ class VehicleService {
     try {
       const response = await vehicleController.getVehicle(id);
       if (response.success && response.data) {
+        const vehicleData = response.data.data;
         // Get latest GPS data for the vehicle
         try {
-          const gpsResponse = await gpsController.getLatestGPSDataByIMEI(response.data.imei);
+          const gpsResponse = await gpsController.getLatestGPSDataByIMEI(vehicleData.imei);
           if (gpsResponse.success && gpsResponse.data) {
             // Merge GPS data with vehicle data
                          return {
-               ...response.data,
+               ...vehicleData,
                latitude: gpsResponse.data.latitude || 0,
                longitude: gpsResponse.data.longitude || 0,
               speed: gpsResponse.data.speed || 0,
@@ -37,9 +38,9 @@ class VehicleService {
           console.warn('Could not fetch GPS data for vehicle:', gpsError);
         }
         
-        return response.data;
+        return vehicleData;
       } else {
-        throw new Error('Vehicle not found');
+        throw new Error(response.message || 'Vehicle not found');
       }
     } catch (error) {
       console.error('Error fetching vehicle:', error);
