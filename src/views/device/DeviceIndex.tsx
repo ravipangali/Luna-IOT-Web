@@ -18,11 +18,22 @@ export const DeviceIndex: React.FC = () => {
     try {
       setLoading(true);
       const response = await deviceController.getDevices(page, 10);
-      setDevices(response.data);
-      setCurrentPage(response.pagination.current_page);
-      setTotalPages(response.pagination.total_pages);
+      setDevices(response.data || []);
+      
+      // Handle case where pagination might be undefined (backend compatibility)
+      if (response.pagination) {
+        setCurrentPage(response.pagination.current_page);
+        setTotalPages(response.pagination.total_pages);
+      } else {
+        // Fallback when pagination is not available
+        setCurrentPage(1);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error('Error loading devices:', error);
+      toast.error('Error loading devices. Please try again.');
+      // Set empty array on error to ensure UI doesn't break
+      setDevices([]);
     } finally {
       setLoading(false);
     }
@@ -42,6 +53,9 @@ export const DeviceIndex: React.FC = () => {
       setTotalPages(1);
     } catch (error) {
       console.error('Error searching devices:', error);
+      toast.error('Error searching devices. Please try again.');
+      // Set empty array on error to ensure UI doesn't break
+      setDevices([]);
     } finally {
       setLoading(false);
     }

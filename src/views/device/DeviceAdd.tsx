@@ -1,24 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import { deviceController } from '../../controllers';
-import type { DeviceFormData, SimOperator, Protocol } from '../../types/models';
+import { deviceModelService } from '../../services/deviceModelService';
+import type { DeviceFormData, SimOperator, Protocol, DeviceModel } from '../../types/models';
 import { SimOperator as SimOperatorEnum, Protocol as ProtocolEnum } from '../../types/models';
 import { toast } from 'react-toastify';
 
 export const DeviceAdd: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [deviceModels, setDeviceModels] = useState<DeviceModel[]>([]);
   
   const [formData, setFormData] = useState<DeviceFormData>({
     imei: '',
     sim_no: '',
     sim_operator: SimOperatorEnum.NTC,
-    protocol: ProtocolEnum.GT06
+    protocol: ProtocolEnum.GT06,
+    iccid: '',
+    model_id: undefined
   });
 
   const [errors, setErrors] = useState<Partial<DeviceFormData>>({});
+
+  useEffect(() => {
+    fetchDeviceModels();
+  }, []);
+
+  const fetchDeviceModels = async () => {
+    try {
+      const response = await deviceModelService.getAll();
+      if (response.success && response.data) {
+        setDeviceModels(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching device models:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +73,7 @@ export const DeviceAdd: React.FC = () => {
     }
   };
 
-  const handleChange = (field: keyof DeviceFormData, value: string | SimOperator | Protocol) => {
+  const handleChange = (field: keyof DeviceFormData, value: string | number | SimOperator | Protocol | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -140,6 +159,39 @@ export const DeviceAdd: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
                   <option value={ProtocolEnum.GT06}>GT06</option>
+                </select>
+              </div>
+
+              {/* ICCID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ICCID (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.iccid || ''}
+                  onChange={(e) => handleChange('iccid', e.target.value)}
+                  placeholder="Enter ICCID number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+
+              {/* Device Model */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Device Model (Optional)
+                </label>
+                <select
+                  value={formData.model_id || ''}
+                  onChange={(e) => handleChange('model_id', e.target.value ? parseInt(e.target.value) : undefined)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">Select device model (optional)</option>
+                  {deviceModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

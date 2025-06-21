@@ -10,7 +10,7 @@ interface Column<T> {
 }
 
 interface TableProps<T> {
-  data: T[];
+  data: T[] | null | undefined;
   columns: Column<T>[];
   loading?: boolean;
   pagination?: {
@@ -38,6 +38,9 @@ export function Table<T extends { id?: string | number }>({
     const newDirection = sortColumn === column.key && sortDirection === 'asc' ? 'desc' : 'asc';
     onSort(column.key, newDirection);
   };
+
+  // Ensure data is always an array
+  const safeData = data || [];
 
   if (loading) {
     return (
@@ -77,14 +80,14 @@ export function Table<T extends { id?: string | number }>({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {data.length === 0 ? (
+            {safeData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500">
                   No data available
                 </td>
               </tr>
             ) : (
-              data.map((item, index) => (
+              safeData.map((item, index) => (
                 <tr key={item.id || index} className="hover:bg-gray-50">
                   {columns.map((column) => (
                     <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

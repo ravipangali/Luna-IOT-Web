@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faSave, faUserCheck } from '@fortawesome/free-solid-svg-icons';
 import { vehicleController } from '../../controllers';
-import type { VehicleFormData, VehicleType } from '../../types/models';
+import type { VehicleFormData, VehicleType, Device, UserVehicle } from '../../types/models';
 import { VehicleType as VehicleTypeEnum } from '../../types/models';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Button } from '../../components/ui/Button';
 import { toast } from 'react-toastify';
+import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/badge';
 
 export const VehicleEdit: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { imei } = useParams<{ imei: string }>();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [deviceInfo, setDeviceInfo] = useState<Device | null>(null);
+  const [userAccessList, setUserAccessList] = useState<UserVehicle[]>([]);
+  const [currentMainUserAccessId, setCurrentMainUserAccessId] = useState<number | null>(null);
+  const [selectedMainUserAccessId, setSelectedMainUserAccessId] = useState<number | null>(null);
+  const [isUpdatingMainUser, setIsUpdatingMainUser] = useState(false);
   
   const [formData, setFormData] = useState<VehicleFormData>({
     imei: '',
@@ -24,268 +33,222 @@ export const VehicleEdit: React.FC = () => {
     vehicle_type: VehicleTypeEnum.CAR
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
-
   useEffect(() => {
     const loadVehicle = async () => {
-      if (!id) return;
+      if (!imei) return;
       
       try {
         setLoadingData(true);
-        const response = await vehicleController.getVehicle(id);
-        if (response.success && response.data) {
-          const vehicle = response.data;
+        const response = await vehicleController.getVehicle(imei);
+        if (response && response.data) {
+          const vehicleData = response.data;
           setFormData({
-            imei: vehicle.imei,
-            reg_no: vehicle.reg_no,
-            name: vehicle.name,
-            odometer: vehicle.odometer,
-            mileage: vehicle.mileage,
-            min_fuel: vehicle.min_fuel,
-            overspeed: vehicle.overspeed,
-            vehicle_type: vehicle.vehicle_type
+            imei: vehicleData.imei,
+            reg_no: vehicleData.reg_no,
+            name: vehicleData.name,
+            odometer: vehicleData.odometer,
+            mileage: vehicleData.mileage,
+            min_fuel: vehicleData.min_fuel,
+            overspeed: vehicleData.overspeed,
+            vehicle_type: vehicleData.vehicle_type
           });
+          if (vehicleData.device) {
+            setDeviceInfo(vehicleData.device);
+          }
+          if (response.users) {
+            const allUsers = [...response.users.main_users, ...response.users.shared_users];
+            setUserAccessList(allUsers);
+            const mainUser = allUsers.find(ua => ua.is_main_user);
+            if (mainUser) {
+              setCurrentMainUserAccessId(mainUser.id);
+              setSelectedMainUserAccessId(mainUser.id);
+            }
+          }
         }
-              } catch (error) {
-          console.error('Error loading vehicle:', error);
-          toast.error('Error loading vehicle data.');
-        } finally {
+      } catch (error) {
+        console.error('Error loading vehicle:', error);
+        toast.error('Error loading vehicle data.');
+      } finally {
         setLoadingData(false);
       }
     };
 
-    loadVehicle();
-  }, [id]);
+    if (imei) {
+        loadVehicle();
+    }
+  }, [imei]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const newErrors: Partial<Record<keyof VehicleFormData, string>> = {};
-    if (!formData.imei.trim()) newErrors.imei = 'IMEI is required';
-    if (!formData.reg_no.trim()) newErrors.reg_no = 'Registration number is required';
-    if (!formData.name.trim()) newErrors.name = 'Vehicle name is required';
-    if (formData.odometer < 0) newErrors.odometer = 'Odometer cannot be negative';
-    if (formData.mileage <= 0) newErrors.mileage = 'Mileage must be greater than 0';
-    if (formData.min_fuel < 0) newErrors.min_fuel = 'Minimum fuel cannot be negative';
-    if (formData.overspeed <= 0) newErrors.overspeed = 'Overspeed limit must be greater than 0';
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    if (!imei) return;
 
     try {
       setLoading(true);
-      await vehicleController.updateVehicle(id!, formData);
+      await vehicleController.updateVehicle(imei, formData);
       toast.success('Vehicle updated successfully!');
-      navigate('/admin/vehicles');
+      navigate(`/vehicles/show/${imei}`);
     } catch (error) {
       console.error('Error updating vehicle:', error);
-      toast.error('Error updating vehicle. Please try again.');
+      toast.error('Failed to update vehicle.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (field: keyof VehicleFormData, value: string | number | VehicleType) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+  const handleUpdateMainUser = async () => {
+    if (!imei || !selectedMainUserAccessId || selectedMainUserAccessId === currentMainUserAccessId) {
+      return;
+    }
+
+    setIsUpdatingMainUser(true);
+    try {
+      await vehicleController.setMainUser(imei, selectedMainUserAccessId);
+      toast.success('Main user updated successfully!');
+      setCurrentMainUserAccessId(selectedMainUserAccessId);
+    } catch (error) {
+      console.error('Error updating main user:', error);
+      toast.error('Failed to update main user.');
+    } finally {
+      setIsUpdatingMainUser(false);
     }
   };
 
+  const handleChange = (field: keyof VehicleFormData, value: string | number | VehicleType) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   if (loadingData) {
-    return (
-      <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-500">Loading vehicle data...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+      return <div className="p-4">Loading...</div>
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center space-x-4">
-            <Link
-              to="/admin/vehicles"
-              className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-            >
-              <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4 text-gray-600" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Edit Vehicle</h1>
-              <p className="text-sm text-gray-500 mt-1">Update vehicle information</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              {/* IMEI */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  IMEI <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.imei}
-                  onChange={(e) => handleChange('imei', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter IMEI number"
-                />
-                {errors.imei && <p className="text-red-500 text-sm mt-1">{errors.imei}</p>}
-              </div>
-
-              {/* Registration Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Registration Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.reg_no}
-                  onChange={(e) => handleChange('reg_no', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter registration number"
-                />
-                {errors.reg_no && <p className="text-red-500 text-sm mt-1">{errors.reg_no}</p>}
-              </div>
-
-              {/* Vehicle Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vehicle Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter vehicle name"
-                />
-                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-              </div>
-
-              {/* Vehicle Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Vehicle Type
-                </label>
-                <select
-                  value={formData.vehicle_type}
-                  onChange={(e) => handleChange('vehicle_type', e.target.value as VehicleType)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value={VehicleTypeEnum.BIKE}>Bike</option>
-                  <option value={VehicleTypeEnum.CAR}>Car</option>
-                  <option value={VehicleTypeEnum.TRUCK}>Truck</option>
-                  <option value={VehicleTypeEnum.BUS}>Bus</option>
-                  <option value={VehicleTypeEnum.SCHOOL_BUS}>School Bus</option>
-                </select>
-              </div>
-
-              {/* Numeric Fields Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Odometer */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Odometer (km) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.odometer}
-                    onChange={(e) => handleChange('odometer', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="0.0"
-                  />
-                  {errors.odometer && <p className="text-red-500 text-sm mt-1">{errors.odometer}</p>}
-                </div>
-
-                {/* Mileage */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mileage (km/l) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.mileage}
-                    onChange={(e) => handleChange('mileage', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="0.0"
-                  />
-                  {errors.mileage && <p className="text-red-500 text-sm mt-1">{errors.mileage}</p>}
-                </div>
-
-                {/* Minimum Fuel */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Fuel (L) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.min_fuel}
-                    onChange={(e) => handleChange('min_fuel', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="0.0"
-                  />
-                  {errors.min_fuel && <p className="text-red-500 text-sm mt-1">{errors.min_fuel}</p>}
-                </div>
-
-                {/* Overspeed Limit */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Overspeed Limit (km/h) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.overspeed}
-                    onChange={(e) => handleChange('overspeed', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="80"
-                  />
-                  {errors.overspeed && <p className="text-red-500 text-sm mt-1">{errors.overspeed}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t">
-              <Link
-                to="/admin/vehicles"
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                disabled={loading}
-              >
-                <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
-                <span>{loading ? 'Updating...' : 'Update Vehicle'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Edit Vehicle</h1>
+        <Link to={`/vehicles/show/${imei}`} className="text-gray-600 hover:text-gray-800">
+          <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
+          Back to Vehicle Details
+        </Link>
       </div>
+
+      <Card>
+          <CardHeader>
+              <CardTitle>Vehicle Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {deviceInfo && (
+                <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+                    <h4 className="font-semibold text-md mb-2 text-gray-700">Device Information</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div><span className="font-semibold">SIM No:</span> {deviceInfo.sim_no}</div>
+                        <div><span className="font-semibold">Operator:</span> <Badge variant={deviceInfo.sim_operator === 'Ncell' ? 'danger' : 'secondary'}>{deviceInfo.sim_operator}</Badge></div>
+                        <div><span className="font-semibold">Device Model:</span> {deviceInfo.model?.name || 'N/A'}</div>
+                        <div><span className="font-semibold">Protocol:</span> {deviceInfo.protocol}</div>
+                    </div>
+                </div>
+            )}
+            <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label>IMEI</label>
+                        <Input type="text" value={formData.imei} disabled />
+                    </div>
+                    <div>
+                        <label>Registration Number</label>
+                        <Input type="text" value={formData.reg_no} onChange={e => handleChange('reg_no', e.target.value)} />
+                    </div>
+                    <div>
+                        <label>Name</label>
+                        <Input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} />
+                    </div>
+                    <div>
+                        <label>Vehicle Type</label>
+                        <select
+                            value={formData.vehicle_type}
+                            onChange={e => handleChange('vehicle_type', e.target.value as VehicleType)}
+                            className="w-full p-2 border rounded"
+                        >
+                            {Object.values(VehicleTypeEnum).map(type => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Odometer (km)</label>
+                        <Input type="number" value={formData.odometer} onChange={e => handleChange('odometer', parseInt(e.target.value))} />
+                    </div>
+                    <div>
+                        <label>Mileage (km/l)</label>
+                        <Input type="number" value={formData.mileage} onChange={e => handleChange('mileage', parseInt(e.target.value))} />
+                    </div>
+                    <div>
+                        <label>Minimum Fuel</label>
+                        <Input type="number" value={formData.min_fuel} onChange={e => handleChange('min_fuel', parseInt(e.target.value))} />
+                    </div>
+                    <div>
+                        <label>Overspeed (km/h)</label>
+                        <Input type="number" value={formData.overspeed} onChange={e => handleChange('overspeed', parseInt(e.target.value))} />
+                    </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <Button type="submit" disabled={loading}>
+                        <FontAwesomeIcon icon={faSave} className="mr-2" />
+                        {loading ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                </div>
+            </form>
+          </CardContent>
+      </Card>
+
+      {/* Main User Assignment Card */}
+      <Card className="border-green-200">
+        <CardHeader className="bg-green-50">
+          <CardTitle className="text-green-800">Main User Assignment</CardTitle>
+          <CardDescription>Select which user is the primary owner of this vehicle.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {userAccessList.length > 0 ? (
+            <div role="radiogroup" className="space-y-4">
+              {userAccessList.map(ua => (
+                <label
+                  key={ua.id}
+                  htmlFor={`user-${ua.id}`}
+                  className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:bg-green-50 has-[:checked]:border-green-300"
+                >
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id={`user-${ua.id}`}
+                      name="mainUser"
+                      value={ua.id}
+                      checked={selectedMainUserAccessId === ua.id}
+                      onChange={(e) => setSelectedMainUserAccessId(Number(e.target.value))}
+                      className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                    />
+                    <div className="ml-3">
+                      <span className="block font-medium">{ua.user?.name}</span>
+                      <span className="block text-sm text-gray-500">{ua.user?.email}</span>
+                    </div>
+                  </div>
+                  {ua.is_main_user && <Badge variant="success">Current Main User</Badge>}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500">No users have been assigned to this vehicle yet.</p>
+          )}
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={handleUpdateMainUser}
+              disabled={isUpdatingMainUser || selectedMainUserAccessId === currentMainUserAccessId}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <FontAwesomeIcon icon={faUserCheck} className="mr-2" />
+              {isUpdatingMainUser ? 'Updating...' : 'Update Main User'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }; 

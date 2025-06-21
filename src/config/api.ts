@@ -51,12 +51,25 @@ export const API_CONFIG = {
     DEVICE_BY_ID: (id: string) => `/api/v1/devices/${id}`,
     DEVICE_BY_IMEI: (imei: string) => `/api/v1/devices/imei/${imei}`,
     
+    // Device Model endpoints
+    DEVICE_MODELS: '/api/v1/device-models',
+    DEVICE_MODEL_BY_ID: (id: string) => `/api/v1/device-models/${id}`,
+    
     // Vehicle endpoints
     VEHICLES: '/api/v1/vehicles',
     VEHICLE: (imei: string) => `/api/v1/vehicles/${imei}`,
     VEHICLE_BY_IMEI: (imei: string) => `/api/v1/vehicles/${imei}`,
     VEHICLE_BY_REG: (regNo: string) => `/api/v1/vehicles/reg/${regNo}`,
     VEHICLES_BY_TYPE: (type: string) => `/api/v1/vehicles/type/${type}`,
+    
+    // User-Vehicle endpoints
+    ASSIGN_VEHICLE: '/api/v1/user-vehicles/assign',
+    BULK_ASSIGN_VEHICLES: '/api/v1/user-vehicles/bulk-assign',
+    UPDATE_PERMISSIONS: (accessId: string) => `/api/v1/user-vehicles/${accessId}/permissions`,
+    SET_MAIN_USER: (vehicleId: string) => `/api/v1/user-vehicles/vehicle/${vehicleId}/set-main-user`,
+    REVOKE_ACCESS: (accessId: string) => `/api/v1/user-vehicles/${accessId}`,
+    GET_USER_ACCESS: (userId: string) => `/api/v1/user-vehicles/user/${userId}`,
+    GET_VEHICLE_ACCESS: (vehicleId: string) => `/api/v1/user-vehicles/vehicle/${vehicleId}`,
     
     // GPS endpoints
     GPS: '/api/v1/gps',

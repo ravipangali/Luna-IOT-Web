@@ -10,7 +10,8 @@ import {
   faSignOutAlt,
   faChartLine,
   faMapMarkerAlt,
-  faClipboardList
+  faClipboardList,
+  faMicrochip
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Live Tracking', href: '/admin/live-tracking', icon: faMapMarkerAlt },
   { name: 'Reports', href: '/admin/reports', icon: faClipboardList },
   { name: 'Devices', href: '/admin/devices', icon: faMobile },
+  { name: 'Device Models', href: '/admin/device-models', icon: faMicrochip },
   { name: 'Vehicles', href: '/admin/vehicles', icon: faCar },
   { name: 'Users', href: '/admin/users', icon: faUsers },
   { name: 'Settings', href: '/admin/settings', icon: faCog },

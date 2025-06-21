@@ -54,8 +54,15 @@ export const UserAdd: React.FC = () => {
       setLoading(true);
       console.log('Submitting user data:', formData);
       
-      await userController.createUser(formData);
-      navigate('/admin/users');
+      // Create the user
+      const userResponse = await userController.createUser(formData);
+      
+      if (userResponse.success) {
+        toast.success('User created successfully');
+        navigate('/admin/users');
+      } else {
+        toast.error('Failed to create user');
+      }
     } catch (error: unknown) {
       console.error('Error submitting form:', error);
       

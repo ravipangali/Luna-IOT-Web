@@ -3,14 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faSave, faUser, faUpload } from '@fortawesome/free-solid-svg-icons';
 import { userController } from '../../controllers';
-import type { Role, UserFormData, User } from '../../types/models';
+import type { UserFormData, Role, User } from '../../types/models';
 import { Role as RoleEnum } from '../../types/models';
 import { toast } from 'react-toastify';
-import apiService from '../../services/apiService';
 
 export const UserEdit: React.FC = () => {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [userData, setUserData] = useState<User | null>(null);
@@ -21,7 +20,7 @@ export const UserEdit: React.FC = () => {
     email: '',
     password: '',
     confirm_password: '',
-    role: RoleEnum.CLIENT as Role,
+    role: RoleEnum.CLIENT,
     image: ''
   });
 
@@ -34,9 +33,11 @@ export const UserEdit: React.FC = () => {
       try {
         setLoadingData(true);
         const response = await userController.getUser(id);
+        
         if (response.success && response.data) {
           const user = response.data;
           setUserData(user);
+          
           setFormData({
             name: user.name,
             phone: user.phone,

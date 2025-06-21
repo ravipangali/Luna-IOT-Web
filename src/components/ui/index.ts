@@ -5,4 +5,6 @@ export { Modal } from './Modal';
 export { ApiStatusIndicator } from './ApiStatusIndicator';
 export { Card, CardContent, CardHeader, CardTitle } from './card';
 export { Badge } from './badge';
-export { Alert, AlertDescription } from './alert'; 
+export { Alert, AlertDescription } from './alert';
+export { VehiclePermissionsSelector } from './VehiclePermissionsSelector';
+export { VehicleAssignmentSelector } from './VehicleAssignmentSelector'; 

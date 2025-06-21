@@ -19,7 +19,7 @@ export const VehicleIndex: React.FC = () => {
     try {
       setLoading(true);
       const response = await vehicleController.getVehicles(page, 10);
-      setVehicles(response.data);
+      setVehicles(response.data || []);
       
       // Handle case where pagination might be undefined (backend compatibility)
       if (response.pagination) {
@@ -33,6 +33,8 @@ export const VehicleIndex: React.FC = () => {
     } catch (error) {
       console.error('Error loading vehicles:', error);
       toast.error('Error loading vehicles. Please try again.');
+      // Set empty array on error to ensure UI doesn't break
+      setVehicles([]);
     } finally {
       setLoading(false);
     }

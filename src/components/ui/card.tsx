@@ -50,4 +50,12 @@ export const CardTitle: React.FC<CardTitleProps> = ({ children, className = '' }
       {children}
     </h3>
   );
+};
+
+export const CardDescription: React.FC<CardTitleProps> = ({ children, className = '' }) => {
+  return (
+    <p className={`text-sm text-gray-500 ${className}`}>
+      {children}
+    </p>
+  );
 }; 

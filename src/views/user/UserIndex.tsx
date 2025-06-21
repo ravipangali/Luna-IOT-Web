@@ -18,11 +18,22 @@ export const UserIndex: React.FC = () => {
     try {
       setLoading(true);
       const response = await userController.getUsers(page, 10);
-      setUsers(response.data);
-      setCurrentPage(response.pagination.current_page);
-      setTotalPages(response.pagination.total_pages);
+      setUsers(response.data || []);
+      
+      // Handle case where pagination might be undefined (backend compatibility)
+      if (response.pagination) {
+        setCurrentPage(response.pagination.current_page);
+        setTotalPages(response.pagination.total_pages);
+      } else {
+        // Fallback when pagination is not available
+        setCurrentPage(1);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error('Error loading users:', error);
+      toast.error('Error loading users. Please try again.');
+      // Set empty array on error to ensure UI doesn't break
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -42,6 +53,9 @@ export const UserIndex: React.FC = () => {
       setTotalPages(1);
     } catch (error) {
       console.error('Error searching users:', error);
+      toast.error('Error searching users. Please try again.');
+      // Set empty array on error to ensure UI doesn't break
+      setUsers([]);
     } finally {
       setLoading(false);
     }

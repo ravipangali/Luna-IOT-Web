@@ -15,6 +15,7 @@ import { VehicleReportNew } from './pages/admin/VehicleReportNew';
 
 // Views
 import { DeviceIndex, DeviceAdd, DeviceEdit, DeviceShow } from './views/device';
+import { DeviceModelIndex, DeviceModelAdd, DeviceModelEdit, DeviceModelShow } from './views/device-model';
 import { VehicleIndex, VehicleAdd, VehicleEdit, VehicleShow } from './views/vehicle';
 import { UserIndex, UserAdd, UserEdit, UserShow } from './views/user';
 
@@ -58,11 +59,17 @@ function App() {
             <Route path="devices/:id" element={<DeviceShow />} />
             <Route path="devices/:id/edit" element={<DeviceEdit />} />
             
+            {/* Device Model Routes */}
+            <Route path="device-models" element={<DeviceModelIndex />} />
+            <Route path="device-models/add" element={<DeviceModelAdd />} />
+            <Route path="device-models/:id" element={<DeviceModelShow />} />
+            <Route path="device-models/:id/edit" element={<DeviceModelEdit />} />
+            
             {/* Vehicle Routes */}
             <Route path="vehicles" element={<VehicleIndex />} />
             <Route path="vehicles/add" element={<VehicleAdd />} />
-            <Route path="vehicles/:id" element={<VehicleShow />} />
-            <Route path="vehicles/:id/edit" element={<VehicleEdit />} />
+            <Route path="vehicles/:imei" element={<VehicleShow />} />
+            <Route path="vehicles/:imei/edit" element={<VehicleEdit />} />
             
             {/* User Routes */}
             <Route path="users" element={<UserIndex />} />
@@ -99,7 +106,7 @@ function App() {
             
             {/* Client can view vehicles and devices but not edit */}
             <Route path="vehicles" element={<VehicleIndex />} />
-            <Route path="vehicles/:id" element={<VehicleShow />} />
+            <Route path="vehicles/:imei" element={<VehicleShow />} />
             <Route path="devices" element={<DeviceIndex />} />
             <Route path="devices/:id" element={<DeviceShow />} />
             <Route path="live-tracking" element={<EnhancedLiveTrackingDashboard />} />

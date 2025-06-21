@@ -1,4 +1,4 @@
-import type { Vehicle, VehicleFormData, PaginatedResponse, ApiResponse } from '../types/models';
+import type { Vehicle, VehicleFormData, PaginatedResponse, ApiResponse, VehicleDetailsResponse, UserVehicle } from '../types/models';
 import { apiService } from '../services/apiService';
 import { API_CONFIG } from '../config/api';
 
@@ -17,9 +17,9 @@ class VehicleController {
     }
   }
 
-  async getVehicle(imei: string): Promise<ApiResponse<Vehicle>> {
+  async getVehicle(imei: string): Promise<VehicleDetailsResponse> {
     try {
-      const response = await apiService.get<ApiResponse<Vehicle>>(
+      const response = await apiService.get<VehicleDetailsResponse>(
         API_CONFIG.ENDPOINTS.VEHICLE(imei)
       );
       return response;
@@ -123,6 +123,19 @@ class VehicleController {
       };
     } catch (error) {
       console.error('Error searching vehicles:', error);
+      throw error;
+    }
+  }
+
+  async setMainUser(vehicleId: string, userAccessId: number): Promise<ApiResponse<UserVehicle>> {
+    try {
+      const response = await apiService.put<ApiResponse<UserVehicle>>(
+        API_CONFIG.ENDPOINTS.SET_MAIN_USER(vehicleId),
+        { user_access_id: userAccessId }
+      );
+      return response;
+    } catch (error) {
+      console.error('Error setting main user:', error);
       throw error;
     }
   }

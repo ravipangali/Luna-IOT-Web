@@ -302,8 +302,6 @@ class ApiService {
     role: number;
     image?: string;
   }): Promise<ApiResponse<unknown>> {
-    const url = `${this.baseURL}/api/v1/users`;
-    
     // Ensure password is a string, not undefined
     if (!userData.password || typeof userData.password !== 'string' || userData.password.trim() === '') {
       throw new ApiError(400, 'Password is required and must be a non-empty string');
@@ -321,23 +319,11 @@ class ApiService {
     
     console.log('Creating user with data:', userDataToSend);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: this.defaultHeaders,
-        body: JSON.stringify(userDataToSend),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      return await this.handleResponse<ApiResponse<unknown>>(response);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
+    // Use fetchWithAuth to include authentication headers
+    return await this.fetchWithAuth<ApiResponse<unknown>>(`${this.baseURL}/api/v1/users`, {
+      method: 'POST',
+      body: JSON.stringify(userDataToSend),
+    });
   }
 
   // Special method for updating users with password changes
@@ -352,8 +338,6 @@ class ApiService {
       image?: string;
     }
   ): Promise<ApiResponse<unknown>> {
-    const url = `${this.baseURL}/api/v1/users/${userId}`;
-    
     // Ensure password is valid if provided
     if (userData.password && (typeof userData.password !== 'string' || userData.password.trim() === '')) {
       throw new ApiError(400, 'Password must be a non-empty string');
@@ -361,23 +345,11 @@ class ApiService {
     
     console.log('Updating user with data:', { ...userData, password: userData.password ? '******' : undefined });
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    
-    try {
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: this.defaultHeaders,
-        body: JSON.stringify(userData),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      return await this.handleResponse<ApiResponse<unknown>>(response);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
+    // Use fetchWithAuth to include authentication headers
+    return await this.fetchWithAuth<ApiResponse<unknown>>(`${this.baseURL}/api/v1/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
   }
 
   // Add methods for user image operations

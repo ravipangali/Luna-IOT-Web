@@ -38,7 +38,7 @@ export const DeviceShow: React.FC = () => {
     }
 
     try {
-      await deviceController.deleteDevice(device.id!);
+      await deviceController.deleteDevice(device.id!.toString());
       window.location.href = '/admin/devices';
     } catch (error) {
       console.error('Error deleting device:', error);
@@ -103,7 +103,7 @@ export const DeviceShow: React.FC = () => {
             </div>
             <div className="flex items-center space-x-3">
               <Link
-                to={`/admin/devices/${device.id}/edit`}
+                to={`/admin/devices/${device.id!.toString()}/edit`}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
@@ -152,6 +152,13 @@ export const DeviceShow: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700">SIM Number</label>
                     <p className="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{device.sim_no}</p>
                   </div>
+                  
+                  {device.iccid && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">ICCID</label>
+                      <p className="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{device.iccid}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -177,6 +184,17 @@ export const DeviceShow: React.FC = () => {
                       </span>
                     </div>
                   </div>
+                  
+                  {device.model && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Device Model</label>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {device.model.name}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

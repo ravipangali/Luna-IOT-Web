@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
-import { vehicleController } from '../../controllers';
-import type { VehicleFormData, VehicleType } from '../../types/models';
+import { faArrowLeft, faSave, faUser } from '@fortawesome/free-solid-svg-icons';
+import { vehicleController, userController } from '../../controllers';
+import type { VehicleFormData, VehicleType, User } from '../../types/models';
 import { VehicleType as VehicleTypeEnum } from '../../types/models';
 import { toast } from 'react-toastify';
 
 export const VehicleAdd: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
   
   const [formData, setFormData] = useState<VehicleFormData>({
     imei: '',
@@ -19,10 +21,29 @@ export const VehicleAdd: React.FC = () => {
     mileage: 0,
     min_fuel: 0,
     overspeed: 60,
-    vehicle_type: VehicleTypeEnum.CAR
+    vehicle_type: VehicleTypeEnum.BIKE,
+    main_user_id: undefined
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof VehicleFormData, string>>>({});
+
+  // Load users on component mount
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const response = await userController.getUsers(1, 100); // Get all users
+        setUsers(response.data);
+      } catch (error) {
+        console.error('Error loading users:', error);
+        toast.error('Failed to load users');
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +61,7 @@ export const VehicleAdd: React.FC = () => {
     
     if (!formData.reg_no.trim()) newErrors.reg_no = 'Registration number is required';
     if (!formData.name.trim()) newErrors.name = 'Vehicle name is required';
+    if (!formData.main_user_id) newErrors.main_user_id = 'Main user is required';
     if (formData.odometer < 0) newErrors.odometer = 'Odometer cannot be negative';
     if (formData.mileage <= 0) newErrors.mileage = 'Mileage must be greater than 0';
     if (formData.min_fuel < 0) newErrors.min_fuel = 'Minimum fuel cannot be negative';
@@ -56,7 +78,7 @@ export const VehicleAdd: React.FC = () => {
       await vehicleController.createVehicle(formData);
       
       // Show success message and navigate
-      toast.success('Vehicle created successfully!');
+      toast.success('Vehicle created successfully with main user assigned!');
       navigate('/admin/vehicles');
     } catch (error: unknown) {
       console.error('Error submitting form:', error);
@@ -79,6 +101,9 @@ export const VehicleAdd: React.FC = () => {
       } else if (errorMessage.includes('already assigned to another vehicle')) {
         setErrors({ imei: 'This device is already assigned to another vehicle.' });
         toast.error('This device is already assigned to another vehicle.');
+      } else if (errorMessage.includes('Main user not found')) {
+        setErrors({ main_user_id: 'Selected user not found.' });
+        toast.error('Selected user not found.');
       } else {
         toast.error(errorMessage);
       }
@@ -87,7 +112,7 @@ export const VehicleAdd: React.FC = () => {
     }
   };
 
-  const handleChange = (field: keyof VehicleFormData, value: string | number | VehicleType) => {
+  const handleChange = (field: keyof VehicleFormData, value: string | number | VehicleType | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -179,6 +204,42 @@ export const VehicleAdd: React.FC = () => {
                   <option value={VehicleTypeEnum.BUS}>Bus</option>
                   <option value={VehicleTypeEnum.SCHOOL_BUS}>School Bus</option>
                 </select>
+              </div>
+
+              {/* Main User */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Main User (Owner) <span className="text-red-500">*</span>
+                </label>
+                {loadingUsers ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                      <span className="text-gray-500">Loading users...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.main_user_id || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleChange('main_user_id', value ? parseInt(value) : undefined);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">Select main user...</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {errors.main_user_id && <p className="text-red-500 text-sm mt-1">{errors.main_user_id}</p>}
+                <p className="text-gray-500 text-xs mt-1">
+                  <FontAwesomeIcon icon={faUser} className="w-3 h-3 mr-1" />
+                  The main user will have full access to this vehicle
+                </p>
               </div>
 
               {/* Numeric Fields Grid */}
