@@ -16,12 +16,14 @@ import {
   faDatabase
 } from '@fortawesome/free-solid-svg-icons';
 import { apiService } from '../../services/apiService';
-import { type DashboardStats } from '../../types/models';
+import { type DashboardStats, type Setting } from '../../types/models';
 import Swal from 'sweetalert2';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [settings, setSettings] = useState<Setting | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -36,7 +38,20 @@ export const AdminDashboard: React.FC = () => {
       }
     };
 
+    const fetchSettings = async () => {
+      try {
+        setLoadingSettings(true);
+        const data = await apiService.getSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch settings", error);
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
     fetchStats();
+    fetchSettings();
   }, []);
 
   const handleForceDeleteAll = async () => {
@@ -203,7 +218,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Balance</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">234</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{loadingSettings ? '...' : settings?.my_pay_balance.toFixed(2)}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <FontAwesomeIcon icon={faWallet} className="w-5 h-5 text-green-600" />

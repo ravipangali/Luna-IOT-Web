@@ -1,6 +1,6 @@
 import { buildAPIUrls } from '../utils/vpsHelper';
 import { API_CONFIG } from '../config/api';
-import type { PaginatedResponse, ApiResponse, DashboardStats } from '../types/models';
+import type { PaginatedResponse, ApiResponse, DashboardStats, Setting } from '../types/models';
 import { authService } from './authService';
 
 // API Error class for better error handling
@@ -268,12 +268,16 @@ class ApiService {
 
   // Dashboard stats
   async getDashboardStats(): Promise<DashboardStats> {
-    return this.get(API_CONFIG.ENDPOINTS.DASHBOARD_STATS);
+    return this.get<DashboardStats>('/api/v1/dashboard/stats');
+  }
+
+  async getSettings(): Promise<Setting> {
+    return this.get<Setting>('/api/v1/settings');
   }
 
   // Force delete methods
   async forceDeleteAllBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete(API_CONFIG.ENDPOINTS.DASHBOARD_FORCE_DELETE_BACKUP);
+    return this.delete<{ success: boolean; message: string; deleted_count: number }>('/api/v1/dashboard/force-delete-all-backup');
   }
 
   async forceDeleteUsersBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {

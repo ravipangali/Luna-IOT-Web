@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { Table } from '../../components/ui';
 import { vehicleController } from '../../controllers';
 import type { Vehicle } from '../../types/models';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { apiService } from '../../services/apiService';
+import { RechargeModal } from './components/RechargeModal';
 
 export const VehicleIndex: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -15,6 +16,18 @@ export const VehicleIndex: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+  const [selectedVehicleForRecharge, setSelectedVehicleForRecharge] = useState<Vehicle | null>(null);
+
+  const handleOpenRechargeModal = (vehicle: Vehicle) => {
+    setSelectedVehicleForRecharge(vehicle);
+    setIsRechargeModalOpen(true);
+  };
+
+  const handleCloseRechargeModal = () => {
+    setSelectedVehicleForRecharge(null);
+    setIsRechargeModalOpen(false);
+  };
 
   const loadVehicles = async (page: number = 1) => {
     try {
@@ -170,16 +183,23 @@ export const VehicleIndex: React.FC = () => {
       header: 'Actions',
       render: (vehicle: Vehicle) => (
         <div className="flex space-x-2">
+          <button
+            onClick={() => handleOpenRechargeModal(vehicle)}
+            className="text-blue-600 hover:text-blue-800 p-1"
+            title="Pay"
+          >
+            <FontAwesomeIcon icon={faWallet} className="w-4 h-4" />
+          </button>
           <Link
             to={`/admin/vehicles/${vehicle.imei}`}
-            className="text-blue-600 hover:text-blue-800 p-1"
+            className="text-green-600 hover:text-green-800 p-1"
             title="View"
           >
             <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
           </Link>
           <Link
             to={`/admin/vehicles/${vehicle.imei}/edit`}
-            className="text-green-600 hover:text-green-800 p-1"
+            className="text-yellow-600 hover:text-yellow-800 p-1"
             title="Edit"
           >
             <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
@@ -197,91 +217,98 @@ export const VehicleIndex: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Vehicle Management</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage your fleet vehicles</p>
+    <>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Vehicle Management</h1>
+                <p className="text-sm text-gray-500 mt-1">Manage your fleet vehicles</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button 
+                  onClick={handleForceDeleteVehicles}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  title="Force Delete Vehicle Backup Data"
+                >
+                  <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
+                  <span>Force Delete Vehicles</span>
+                </button>
+                <Link
+                  to="/admin/vehicles/add"
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
+                  <span>Add Vehicle</span>
+                </Link>
+              </div>
             </div>
+          </div>
+
+          {/* Search */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={handleForceDeleteVehicles}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                title="Force Delete Vehicle Backup Data"
-              >
-                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
-                <span>Force Delete Vehicles</span>
-              </button>
-              <Link
-                to="/admin/vehicles/add"
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-                <span>Add Vehicle</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or registration..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              />
-              <FontAwesomeIcon 
-                icon={faSearch} 
-                className="w-4 h-4 absolute left-3 top-3 text-gray-400" 
-              />
-            </div>
-            <button
-              onClick={handleSearch}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Search
-            </button>
-            {searchQuery && (
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name or registration..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <FontAwesomeIcon 
+                  icon={faSearch} 
+                  className="w-4 h-4 absolute left-3 top-3 text-gray-400" 
+                />
+              </div>
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  loadVehicles(1);
-                }}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={handleSearch}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                Clear
+                Search
               </button>
-            )}
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    loadVehicles(1);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <Table
-            data={vehicles}
-            columns={columns}
-            loading={loading}
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: (page) => {
-                if (searchQuery) {
-                  return;
+          {/* Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <Table
+              data={vehicles}
+              columns={columns}
+              loading={loading}
+              pagination={{
+                currentPage,
+                totalPages,
+                onPageChange: (page) => {
+                  if (searchQuery) {
+                    return;
+                  }
+                  loadVehicles(page);
                 }
-                loadVehicles(page);
-              }
-            }}
-          />
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      <RechargeModal
+        isOpen={isRechargeModalOpen}
+        onClose={handleCloseRechargeModal}
+        vehicle={selectedVehicleForRecharge}
+      />
+    </>
   );
 }; 

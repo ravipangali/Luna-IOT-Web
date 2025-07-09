@@ -21,7 +21,7 @@ const navigation = [
   { name: 'Reports', href: '/admin/reports', icon: faClipboardList },
   { name: 'Devices', href: '/admin/devices', icon: faMobile },
   { name: 'Device Models', href: '/admin/device-models', icon: faMicrochip },
-  { name: 'Vehicles', href: '/admin/vehicles', icon: faCar },
+  { name: 'All Vehicles', href: '/admin/vehicles', icon: faCar },
   { name: 'Users', href: '/admin/users', icon: faUsers },
   { name: 'Settings', href: '/admin/settings', icon: faCog },
 ];

@@ -238,4 +238,11 @@ export interface DashboardStats {
   total_km_today: number;
   total_sms_available: number;
   deleted_backup_data: number;
+}
+
+export interface Setting {
+  id: number;
+  my_pay_balance: number;
+  created_at: string;
+  updated_at: string;
 } 
