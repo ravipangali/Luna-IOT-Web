@@ -10,7 +10,8 @@ interface RechargeModalProps {
   vehicle: Vehicle | null;
 }
 
-const RECHARGE_AMOUNTS = [10, 20, 30, 40, 50, 100, 200, 300, 400, 500];
+const NTC_AMOUNTS = [10, 20, 30, 40, 50, 100, 200, 300, 400, 500];
+const NCELL_AMOUNTS = [50, 100, 200, 300, 400, 500];
 
 const Spinner = () => (
     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -19,8 +20,11 @@ const Spinner = () => (
 export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, vehicle }) => {
   const [device, setDevice] = useState<Device | null>(null);
   const [loadingDevice, setLoadingDevice] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState<number>(RECHARGE_AMOUNTS[0]);
+  const [selectedAmount, setSelectedAmount] = useState<number>(NTC_AMOUNTS[0]);
   const [isRecharging, setIsRecharging] = useState(false);
+
+  const isNcell = device?.sim_operator?.toLowerCase() === 'ncell';
+  const rechargeAmounts = isNcell ? NCELL_AMOUNTS : NTC_AMOUNTS;
 
   useEffect(() => {
     if (isOpen && vehicle) {
@@ -28,7 +32,12 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, v
       deviceController.getDeviceByIMEI(vehicle.imei)
         .then((response) => {
           if (response.success) {
-            setDevice(response.data || null);
+            const loadedDevice = response.data || null;
+            setDevice(loadedDevice);
+            
+            // Set default amount based on operator
+            const amounts = loadedDevice?.sim_operator?.toLowerCase() === 'ncell' ? NCELL_AMOUNTS : NTC_AMOUNTS;
+            setSelectedAmount(amounts[0]);
           } else {
             toast.error(response.message || 'Failed to fetch device details.');
           }
@@ -42,7 +51,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, v
         });
     } else {
       setDevice(null);
-      setSelectedAmount(RECHARGE_AMOUNTS[0]);
+      setSelectedAmount(NTC_AMOUNTS[0]); // Reset to default when modal is closed
     }
   }, [isOpen, vehicle]);
 
@@ -112,7 +121,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, v
                 <select id="amount" value={selectedAmount} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAmount(Number(e.target.value))}
                   className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
                 >
-                  {RECHARGE_AMOUNTS.map(amount => (
+                  {rechargeAmounts.map(amount => (
                     <option key={amount} value={amount}>{amount}</option>
                   ))}
                 </select>
