@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faSearch, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { Table } from '../../components/ui';
 import { vehicleController } from '../../controllers';
 import type { Vehicle } from '../../types/models';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import { apiService } from '../../services/apiService';
 
 export const VehicleIndex: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -102,6 +103,47 @@ export const VehicleIndex: React.FC = () => {
     }
   };
 
+  const handleForceDeleteVehicles = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Force Delete Vehicle Backup Data?',
+        text: 'This will permanently delete all soft-deleted vehicles from the database. This action cannot be undone!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete permanently!',
+        cancelButtonText: 'Cancel',
+        input: 'text',
+        inputPlaceholder: 'Type "DELETE" to confirm',
+        inputValidator: (value) => {
+          if (value !== 'DELETE') {
+            return 'You must type "DELETE" to confirm!'
+          }
+        }
+      });
+
+      if (result.isConfirmed) {
+        const response = await apiService.forceDeleteVehiclesBackupData();
+        
+        await Swal.fire({
+          title: 'Success!',
+          text: `${response.deleted_count} vehicle records have been permanently deleted.`,
+          icon: 'success',
+          timer: 3000,
+          showConfirmButton: false
+        });
+      }
+    } catch (error) {
+      console.error('Error force deleting vehicle backup data:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to delete vehicle backup data. Please try again.',
+        icon: 'error'
+      });
+    }
+  };
+
   useEffect(() => {
     loadVehicles();
   }, []);
@@ -164,13 +206,23 @@ export const VehicleIndex: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">Vehicle Management</h1>
               <p className="text-sm text-gray-500 mt-1">Manage your fleet vehicles</p>
             </div>
-            <Link
-              to="/admin/vehicles/add"
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-              <span>Add Vehicle</span>
-            </Link>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={handleForceDeleteVehicles}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                title="Force Delete Vehicle Backup Data"
+              >
+                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
+                <span>Force Delete Vehicles</span>
+              </button>
+              <Link
+                to="/admin/vehicles/add"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
+                <span>Add Vehicle</span>
+              </Link>
+            </div>
           </div>
         </div>
 

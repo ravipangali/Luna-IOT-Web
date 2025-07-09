@@ -16,7 +16,7 @@ import { VehicleReportNew } from './pages/admin/VehicleReportNew';
 // Views
 import { DeviceIndex, DeviceAdd, DeviceEdit, DeviceShow } from './views/device';
 import { DeviceModelIndex, DeviceModelAdd, DeviceModelEdit, DeviceModelShow } from './views/device-model';
-import { VehicleIndex, VehicleAdd, VehicleEdit, VehicleShow } from './views/vehicle';
+import { VehicleIndex, VehicleAdd, VehicleEdit, VehicleShow, VehicleAddUser, VehicleEditUserAccess } from './views/vehicle';
 import { UserIndex, UserAdd, UserEdit, UserShow } from './views/user';
 
 function App() {
@@ -70,6 +70,8 @@ function App() {
             <Route path="vehicles/add" element={<VehicleAdd />} />
             <Route path="vehicles/:imei" element={<VehicleShow />} />
             <Route path="vehicles/:imei/edit" element={<VehicleEdit />} />
+            <Route path="vehicles/:imei/add-user" element={<VehicleAddUser />} />
+            <Route path="vehicles/:imei/edit-user/:accessId" element={<VehicleEditUserAccess />} />
             
             {/* User Routes */}
             <Route path="users" element={<UserIndex />} />

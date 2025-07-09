@@ -1,254 +1,166 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave, faUserCheck } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import { vehicleController } from '../../controllers';
-import type { VehicleFormData, VehicleType, Device, UserVehicle } from '../../types/models';
-import { VehicleType as VehicleTypeEnum } from '../../types/models';
+import type { VehicleFormData, Device } from '../../types/models';
+import { toast } from 'react-toastify';
+import { Loader } from '../../components/ui/Loader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/Button';
-import { toast } from 'react-toastify';
 import { Input } from '../../components/ui/Input';
-import { Badge } from '../../components/ui/badge';
+import { Label } from '../../components/ui/Label';
+import { Select } from '../../components/ui/select';
+import { ApiError } from '../../services/apiService';
 
 export const VehicleEdit: React.FC = () => {
-  const navigate = useNavigate();
   const { imei } = useParams<{ imei: string }>();
-  const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true);
-  const [deviceInfo, setDeviceInfo] = useState<Device | null>(null);
-  const [userAccessList, setUserAccessList] = useState<UserVehicle[]>([]);
-  const [currentMainUserAccessId, setCurrentMainUserAccessId] = useState<number | null>(null);
-  const [selectedMainUserAccessId, setSelectedMainUserAccessId] = useState<number | null>(null);
-  const [isUpdatingMainUser, setIsUpdatingMainUser] = useState(false);
-  
-  const [formData, setFormData] = useState<VehicleFormData>({
-    imei: '',
-    reg_no: '',
-    name: '',
-    odometer: 0,
-    mileage: 0,
-    min_fuel: 0,
-    overspeed: 80,
-    vehicle_type: VehicleTypeEnum.CAR
-  });
+  const navigate = useNavigate();
+  const [vehicle, setVehicle] = useState<VehicleFormData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
 
   useEffect(() => {
     const loadVehicle = async () => {
       if (!imei) return;
-      
+
       try {
-        setLoadingData(true);
+        setLoading(true);
         const response = await vehicleController.getVehicle(imei);
         if (response && response.data) {
-          const vehicleData = response.data.data;
-          setFormData({
-            imei: vehicleData.imei,
-            reg_no: vehicleData.reg_no,
-            name: vehicleData.name,
-            odometer: vehicleData.odometer,
-            mileage: vehicleData.mileage,
-            min_fuel: vehicleData.min_fuel,
-            overspeed: vehicleData.overspeed,
-            vehicle_type: vehicleData.vehicle_type
-          });
-          if (vehicleData.device) {
-            setDeviceInfo(vehicleData.device);
-          }
-          if (response.data.users) {
-            const allUsers = [...response.data.users.main_users, ...response.data.users.shared_users];
-            setUserAccessList(allUsers);
-            const mainUser = allUsers.find(ua => ua.is_main_user);
-            if (mainUser) {
-              setCurrentMainUserAccessId(mainUser.id);
-              setSelectedMainUserAccessId(mainUser.id);
-            }
-          }
+          setVehicle(response.data.data);
+        } else {
+          throw new ApiError(404, 'Failed to load vehicle data');
         }
-      } catch (error) {
-        console.error('Error loading vehicle:', error);
-        toast.error('Error loading vehicle data.');
+      } catch (err) {
+        console.error('Error loading vehicle:', err);
+        const errorMessage = err instanceof ApiError ? err.message : 'An unknown error occurred.';
+        setError(errorMessage);
+        toast.error(`Error loading vehicle: ${errorMessage}`);
       } finally {
-        setLoadingData(false);
+        setLoading(false);
       }
     };
 
-    if (imei) {
-        loadVehicle();
-    }
+    const loadDevices = async () => {
+      try {
+        const deviceResponse = await vehicleController.getAvailableDevices();
+        if (deviceResponse.success && deviceResponse.data) {
+          setDevices(deviceResponse.data);
+        }
+      } catch (err) {
+        console.error('Error loading devices:', err);
+        toast.error('Failed to load available devices.');
+      }
+    };
+
+    loadVehicle();
+    loadDevices();
   }, [imei]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setVehicle(prev => prev ? { ...prev, [name]: value } : null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!imei) return;
+    if (!vehicle || !imei) return;
+
+    const { ...updateData } = vehicle;
 
     try {
-      setLoading(true);
-      await vehicleController.updateVehicle(imei, formData);
+      await vehicleController.updateVehicle(imei, updateData);
       toast.success('Vehicle updated successfully!');
-      navigate(`/vehicles/show/${imei}`);
-    } catch (error) {
-      console.error('Error updating vehicle:', error);
-      toast.error('Failed to update vehicle.');
-    } finally {
-      setLoading(false);
+      navigate(`/admin/vehicles/${imei}`);
+    } catch (err) {
+      console.error('Error updating vehicle:', err);
+      const errorMessage = err instanceof ApiError ? err.message : 'An unknown error occurred.';
+      setError(errorMessage);
+      toast.error(`Failed to update vehicle: ${errorMessage}`);
     }
   };
 
-  const handleUpdateMainUser = async () => {
-    if (!imei || !selectedMainUserAccessId || selectedMainUserAccessId === currentMainUserAccessId) {
-      return;
-    }
-
-    setIsUpdatingMainUser(true);
-    try {
-      await vehicleController.setMainUser(imei, selectedMainUserAccessId);
-      toast.success('Main user updated successfully!');
-      setCurrentMainUserAccessId(selectedMainUserAccessId);
-    } catch (error) {
-      console.error('Error updating main user:', error);
-      toast.error('Failed to update main user.');
-    } finally {
-      setIsUpdatingMainUser(false);
-    }
-  };
-
-  const handleChange = (field: keyof VehicleFormData, value: string | number | VehicleType) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  if (loadingData) {
-      return <div className="p-4">Loading...</div>
-  }
+  if (loading) return <div className="p-4"><Loader /></div>;
+  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+  if (!vehicle) return <div className="p-4">Vehicle not found.</div>;
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Edit Vehicle</h1>
-        <Link to={`/vehicles/show/${imei}`} className="text-gray-600 hover:text-gray-800">
-          <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
-          Back to Vehicle Details
-        </Link>
-      </div>
+    <div className="p-4 md:p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link to={`/admin/vehicles/${imei}`}>
+            <Button variant="outline">
+              <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
+              Back to Vehicle
+            </Button>
+          </Link>
+        </div>
 
-      <Card>
+        <Card>
           <CardHeader>
-              <CardTitle>Vehicle Information</CardTitle>
+            <CardTitle>Edit Vehicle</CardTitle>
+            <CardDescription>Update the details for vehicle with registration {vehicle.reg_no}.</CardDescription>
           </CardHeader>
           <CardContent>
-            {deviceInfo && (
-                <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-                    <h4 className="font-semibold text-md mb-2 text-gray-700">Device Information</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div><span className="font-semibold">SIM No:</span> {deviceInfo.sim_no}</div>
-                        <div><span className="font-semibold">Operator:</span> <Badge variant={deviceInfo.sim_operator === 'Ncell' ? 'danger' : 'secondary'}>{deviceInfo.sim_operator}</Badge></div>
-                        <div><span className="font-semibold">Device Model:</span> {deviceInfo.model?.name || 'N/A'}</div>
-                        <div><span className="font-semibold">Protocol:</span> {deviceInfo.protocol}</div>
-                    </div>
-                </div>
-            )}
-            <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label>IMEI</label>
-                        <Input type="text" value={formData.imei} disabled />
-                    </div>
-                    <div>
-                        <label>Registration Number</label>
-                        <Input type="text" value={formData.reg_no} onChange={e => handleChange('reg_no', e.target.value)} />
-                    </div>
-                    <div>
-                        <label>Name</label>
-                        <Input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} />
-                    </div>
-                    <div>
-                        <label>Vehicle Type</label>
-                        <select
-                            value={formData.vehicle_type}
-                            onChange={e => handleChange('vehicle_type', e.target.value as VehicleType)}
-                            className="w-full p-2 border rounded"
-                        >
-                            {Object.values(VehicleTypeEnum).map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label>Odometer (km)</label>
-                        <Input type="number" value={formData.odometer} onChange={e => handleChange('odometer', parseInt(e.target.value))} />
-                    </div>
-                    <div>
-                        <label>Mileage (km/l)</label>
-                        <Input type="number" value={formData.mileage} onChange={e => handleChange('mileage', parseInt(e.target.value))} />
-                    </div>
-                    <div>
-                        <label>Minimum Fuel</label>
-                        <Input type="number" value={formData.min_fuel} onChange={e => handleChange('min_fuel', parseInt(e.target.value))} />
-                    </div>
-                    <div>
-                        <label>Overspeed (km/h)</label>
-                        <Input type="number" value={formData.overspeed} onChange={e => handleChange('overspeed', parseInt(e.target.value))} />
-                    </div>
-                </div>
-                <div className="mt-4 flex justify-end">
-                    <Button type="submit" disabled={loading}>
-                        <FontAwesomeIcon icon={faSave} className="mr-2" />
-                        {loading ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                </div>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <Label htmlFor="name">Vehicle Name</Label>
+                <Input id="name" name="name" value={vehicle.name} onChange={handleChange} required />
+              </div>
+              
+              <div>
+                <Label htmlFor="reg_no">Registration Number</Label>
+                <Input id="reg_no" name="reg_no" value={vehicle.reg_no} onChange={handleChange} required />
+              </div>
+              
+              <div>
+                <Label htmlFor="imei">Device IMEI</Label>
+                <Select id="imei" name="imei" value={vehicle.imei} onChange={handleChange} required>
+                  <option value={vehicle.imei}>{vehicle.imei} (current)</option>
+                  {devices.map(d => (
+                    <option key={d.imei} value={d.imei}>{d.imei}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="vehicle_type">Vehicle Type</Label>
+                <Select id="vehicle_type" name="vehicle_type" value={vehicle.vehicle_type} onChange={handleChange} required>
+                  <option value="car">Car</option>
+                  <option value="bus">Bus</option>
+                  <option value="truck">Truck</option>
+                  <option value="bike">Bike</option>
+                  <option value="school_bus">School Bus</option>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="odometer">Odometer (km)</Label>
+                <Input id="odometer" name="odometer" type="number" value={vehicle.odometer} onChange={handleChange} required />
+              </div>
+
+              <div>
+                <Label htmlFor="mileage">Mileage (km/l)</Label>
+                <Input id="mileage" name="mileage" type="number" step="0.1" value={vehicle.mileage} onChange={handleChange} required />
+              </div>
+
+              <div>
+                <Label htmlFor="overspeed">Overspeed Limit (km/h)</Label>
+                <Input id="overspeed" name="overspeed" type="number" value={vehicle.overspeed} onChange={handleChange} required />
+              </div>
+              
+              <div className="md:col-span-2 flex justify-end">
+                <Button type="submit">
+                  <FontAwesomeIcon icon={faSave} className="mr-2" />
+                  Save Changes
+                </Button>
+              </div>
             </form>
           </CardContent>
-      </Card>
-
-      {/* Main User Assignment Card */}
-      <Card className="border-green-200">
-        <CardHeader className="bg-green-50">
-          <CardTitle className="text-green-800">Main User Assignment</CardTitle>
-          <CardDescription>Select which user is the primary owner of this vehicle.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {userAccessList.length > 0 ? (
-            <div role="radiogroup" className="space-y-4">
-              {userAccessList.map(ua => (
-                <label
-                  key={ua.id}
-                  htmlFor={`user-${ua.id}`}
-                  className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:bg-green-50 has-[:checked]:border-green-300"
-                >
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      id={`user-${ua.id}`}
-                      name="mainUser"
-                      value={ua.id}
-                      checked={selectedMainUserAccessId === ua.id}
-                      onChange={(e) => setSelectedMainUserAccessId(Number(e.target.value))}
-                      className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
-                    />
-                    <div className="ml-3">
-                      <span className="block font-medium">{ua.user?.name}</span>
-                      <span className="block text-sm text-gray-500">{ua.user?.email}</span>
-                    </div>
-                  </div>
-                  {ua.is_main_user && <Badge variant="success">Current Main User</Badge>}
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">No users have been assigned to this vehicle yet.</p>
-          )}
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={handleUpdateMainUser}
-              disabled={isUpdatingMainUser || selectedMainUserAccessId === currentMainUserAccessId}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <FontAwesomeIcon icon={faUserCheck} className="mr-2" />
-              {isUpdatingMainUser ? 'Updating...' : 'Update Main User'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }; 

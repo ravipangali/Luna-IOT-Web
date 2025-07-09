@@ -12,8 +12,8 @@ export interface MapVehicle {
   imei: string;
   reg_no: string;
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   speed: number;
   course: number;
   ignition: string;
@@ -105,7 +105,9 @@ export const calculateBounds = (vehicles: MapVehicle[]): google.maps.LatLngBound
   
   const bounds = new google.maps.LatLngBounds();
   vehicles.forEach(vehicle => {
-    bounds.extend({ lat: vehicle.latitude, lng: vehicle.longitude });
+    if (vehicle.latitude && vehicle.longitude) {
+      bounds.extend({ lat: vehicle.latitude, lng: vehicle.longitude });
+    }
   });
   
   return bounds;
@@ -135,8 +137,9 @@ const toRad = (value: number): number => {
 };
 
 // Format speed display
-export const formatSpeed = (speed: number): string => {
-  return `${speed.toFixed(1)} km/h`;
+export const formatSpeed = (speed: number | null): string => {
+  if (speed === null) return 'N/A';
+  return `${speed} km/h`;
 };
 
 // Format distance display
@@ -148,12 +151,15 @@ export const formatDistance = (distance: number): string => {
 };
 
 // Format time display
-export const formatTime = (date: Date): string => {
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+export const formatTime = (time: Date | string | null): string => {
+  if (time === null) return 'N/A';
+
+  // Check if time is a valid Date object
+  if (!(time instanceof Date) || isNaN(time.getTime())) {
+    return 'Invalid Date';
+  }
+
+  return time.toLocaleString();
 };
 
 // Check if vehicle is in a geofence (simple circle for now)
@@ -163,6 +169,9 @@ export const isVehicleInGeofence = (
   centerLng: number,
   radiusKm: number
 ): boolean => {
+  if (vehicle.latitude === null || vehicle.longitude === null) {
+    return false;
+  }
   const distance = calculateDistance(
     vehicle.latitude,
     vehicle.longitude,
@@ -173,16 +182,12 @@ export const isVehicleInGeofence = (
 };
 
 // Get map center for vehicles
-export const getMapCenter = (vehicles: MapVehicle[]): { lat: number; lng: number } => {
-  if (vehicles.length === 0) {
-    return { lat: 27.7172, lng: 85.3240 }; // Default to Kathmandu
-  }
+export const getMapCenter = (vehicles: MapVehicle[]): { lat: number; lng: number } | null => {
+  const validVehicles = vehicles.filter(v => v.latitude && v.longitude);
+  if (validVehicles.length === 0) return null;
+
+  const lat = validVehicles.reduce((sum, v) => sum + (v.latitude || 0), 0) / validVehicles.length;
+  const lng = validVehicles.reduce((sum, v) => sum + (v.longitude || 0), 0) / validVehicles.length;
   
-  const latSum = vehicles.reduce((sum, vehicle) => sum + vehicle.latitude, 0);
-  const lngSum = vehicles.reduce((sum, vehicle) => sum + vehicle.longitude, 0);
-  
-  return {
-    lat: latSum / vehicles.length,
-    lng: lngSum / vehicles.length,
-  };
+  return { lat, lng };
 }; 

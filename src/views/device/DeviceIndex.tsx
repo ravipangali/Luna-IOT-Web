@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faSearch, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { Table } from '../../components/ui';
 import { deviceController } from '../../controllers';
 import type { Device } from '../../types/models';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
+import { apiService } from '../../services/apiService';
 
 export const DeviceIndex: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -62,17 +64,85 @@ export const DeviceIndex: React.FC = () => {
   };
 
   const handleDelete = async (device: Device) => {
-    if (!window.confirm(`Are you sure you want to delete device with IMEI ${device.imei}?`)) {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete device with IMEI "${device.imei}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 
     try {
       await deviceController.deleteDevice(device.id!.toString());
-      toast.success(`Device with IMEI ${device.imei} deleted successfully.`);
+      toast.success(`Device with IMEI ${device.imei} deleted successfully!`);
       loadDevices(currentPage);
+      
+      Swal.fire({
+        title: 'Deleted!',
+        text: `Device with IMEI ${device.imei} has been deleted.`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (error) {
       console.error('Error deleting device:', error);
-      toast.error('Error deleting device. Please try again.');
+      toast.error(error instanceof Error 
+        ? error.message || 'Error deleting device. Please try again.'
+        : 'Error deleting device. Please try again.');
+      
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to delete the device. Please try again.',
+        icon: 'error'
+      });
+    }
+  };
+
+  const handleForceDeleteDevices = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Force Delete Device Backup Data?',
+        text: 'This will permanently delete all soft-deleted devices from the database. This action cannot be undone!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete permanently!',
+        cancelButtonText: 'Cancel',
+        input: 'text',
+        inputPlaceholder: 'Type "DELETE" to confirm',
+        inputValidator: (value) => {
+          if (value !== 'DELETE') {
+            return 'You must type "DELETE" to confirm!'
+          }
+        }
+      });
+
+      if (result.isConfirmed) {
+        const response = await apiService.forceDeleteDevicesBackupData();
+        
+        await Swal.fire({
+          title: 'Success!',
+          text: `${response.deleted_count} device records have been permanently deleted.`,
+          icon: 'success',
+          timer: 3000,
+          showConfirmButton: false
+        });
+      }
+    } catch (error) {
+      console.error('Error force deleting device backup data:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to delete device backup data. Please try again.',
+        icon: 'error'
+      });
     }
   };
 
@@ -126,13 +196,23 @@ export const DeviceIndex: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900">Device Management</h1>
               <p className="text-sm text-gray-500 mt-1">Manage your IoT devices</p>
             </div>
-            <Link
-              to="/admin/devices/add"
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-              <span>Add Device</span>
-            </Link>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={handleForceDeleteDevices}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                title="Force Delete Device Backup Data"
+              >
+                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
+                <span>Force Delete Devices</span>
+              </button>
+              <Link
+                to="/admin/devices/add"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
+                <span>Add Device</span>
+              </Link>
+            </div>
           </div>
         </div>
 

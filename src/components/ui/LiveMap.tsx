@@ -5,8 +5,6 @@ import {
   type MapVehicle,
   getVehicleStatus,
   createVehicleMarkerIcon,
-  calculateBounds,
-  getMapCenter,
   formatSpeed,
   formatTime,
   getStatusColor
@@ -29,16 +27,12 @@ const mapContainerStyle = {
 // Vehicle marker component
 const VehicleMarker: React.FC<{
   vehicle: MapVehicle;
+  position: { lat: number; lng: number };
   isSelected: boolean;
   onSelect: (vehicleId: string) => void;
   showInfoWindow: boolean;
   onInfoWindowToggle: (vehicleId: string | null) => void;
-}> = ({ vehicle, isSelected, onSelect, showInfoWindow, onInfoWindowToggle }) => {
-  
-  const position = useMemo(() => ({
-    lat: vehicle.latitude,
-    lng: vehicle.longitude,
-  }), [vehicle.latitude, vehicle.longitude]);
+}> = ({ vehicle, position, isSelected, onSelect, showInfoWindow, onInfoWindowToggle }) => {
   
   const status = getVehicleStatus(vehicle);
   
@@ -109,7 +103,7 @@ const VehicleMarker: React.FC<{
                 </span>
               </div>
               <div><strong>Last Update:</strong> {formatTime(vehicle.lastUpdate)}</div>
-              <div><strong>Location:</strong> {vehicle.latitude.toFixed(6)}, {vehicle.longitude.toFixed(6)}</div>
+              <div><strong>Location:</strong> {vehicle.latitude?.toFixed(6)}, {vehicle.longitude?.toFixed(6)}</div>
             </div>
             
             <div className={`mt-2 px-2 py-1 rounded text-xs font-medium inline-block ${
@@ -127,52 +121,33 @@ const VehicleMarker: React.FC<{
 };
 
 // Main LiveMap component
-export const LiveMap: React.FC<LiveMapProps> = ({
+export const LiveMap = React.memo<LiveMapProps>(({
   vehicles,
   selectedVehicle,
   onVehicleSelect,
   center,
-  zoom = 13
+  zoom = 7
 }) => {
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Filter vehicles to only show those with valid coordinates
-  // ENHANCED: This implements the user's requirement to show markers only for valid GPS data
-  const vehiclesWithValidCoordinates = useMemo(() => {
-    const validVehicles = vehicles.filter(vehicle => {
-      const hasValidCoords = vehicle.latitude !== 0 && 
-                            vehicle.longitude !== 0 &&
-                            vehicle.latitude != null && 
-                            vehicle.longitude != null &&
-                            !isNaN(vehicle.latitude) &&
-                            !isNaN(vehicle.longitude) &&
-                            vehicle.latitude >= -90 && vehicle.latitude <= 90 &&
-                            vehicle.longitude >= -180 && vehicle.longitude <= 180;
-      
-      if (!hasValidCoords) {
-        console.log(`🚫 Filtering out ${vehicle.name || vehicle.reg_no} from map - invalid coordinates (lat: ${vehicle.latitude}, lng: ${vehicle.longitude})`);
-      } else {
-        console.log(`✅ Including ${vehicle.name || vehicle.reg_no} on map - valid coordinates (lat: ${vehicle.latitude}, lng: ${vehicle.longitude})`);
-      }
-      
-      return hasValidCoords;
-    });
-    
-    console.log(`📍 LiveMap: Showing ${validVehicles.length} out of ${vehicles.length} vehicles with valid coordinates`);
-    return validVehicles;
-  }, [vehicles]);
+  const vehiclesWithValidCoordinates = useMemo(
+    () =>
+      vehicles.filter(
+        (
+          vehicle
+        ): vehicle is MapVehicle & { latitude: number; longitude: number } =>
+          vehicle.latitude != null && vehicle.longitude != null
+      ),
+    [vehicles]
+  );
 
   // Calculate map center and zoom based on filtered vehicles
   const mapCenter = useMemo(() => {
-    if (center) {
-      return { lat: center[0], lng: center[1] };
-    }
-    
-    // Use Nepal as default center if no valid vehicles
-    const calculatedCenter = getMapCenter(vehiclesWithValidCoordinates);
-    return calculatedCenter || { lat: 27.7172, lng: 85.3240 }; // Kathmandu, Nepal
-  }, [center, vehiclesWithValidCoordinates]);
+    // Always use the default center for Nepal view
+    return center ? { lat: center[0], lng: center[1] } : { lat: 27.7172, lng: 85.3240 }; // Kathmandu, Nepal
+  }, [center]);
 
   const handleVehicleSelect = useCallback((vehicleId: string) => {
     onVehicleSelect?.(vehicleId);
@@ -184,15 +159,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-    
-    // Fit bounds to show all valid vehicles
-    if (vehiclesWithValidCoordinates.length > 1) {
-      const bounds = calculateBounds(vehiclesWithValidCoordinates);
-      if (bounds) {
-        map.fitBounds(bounds);
-      }
-    }
-  }, [vehiclesWithValidCoordinates]);
+  }, []);
 
   const onUnmount = useCallback(() => {
     mapRef.current = null;
@@ -214,6 +181,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
           <VehicleMarker
             key={vehicle.id}
             vehicle={vehicle}
+            position={{ lat: vehicle.latitude, lng: vehicle.longitude }}
             isSelected={selectedVehicle === vehicle.id}
             onSelect={handleVehicleSelect}
             showInfoWindow={selectedMarker === vehicle.id}
@@ -269,6 +237,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default LiveMap; 

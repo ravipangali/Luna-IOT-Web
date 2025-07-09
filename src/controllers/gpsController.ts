@@ -26,6 +26,17 @@ export interface GPSData {
   gsm_status?: string;
 }
 
+export interface IndividualTrackingData {
+  success: boolean;
+  imei: string;
+  message: string;
+  has_status: boolean;
+  has_location: boolean;
+  status_data?: GPSData;
+  location_data?: GPSData;
+  location_is_historical?: boolean;
+}
+
 export interface GPSRoute {
   imei: string;
   start_time: string;
@@ -52,7 +63,7 @@ class GPSController {
   async getLatestGPSData(): Promise<ApiResponse<GPSData[]>> {
     try {
       const response = await apiService.get<ApiResponse<GPSData[]>>(
-        API_CONFIG.ENDPOINTS.GPS_LATEST
+        `${API_CONFIG.ENDPOINTS.GPS}/latest`
       );
       return response;
     } catch (error) {
@@ -314,6 +325,18 @@ class GPSController {
         console.error(`❌ Status fallback also failed for IMEI ${imei}:`, fallbackError);
         throw error; // Throw original error
       }
+    }
+  }
+
+  async getIndividualTrackingData(imei: string): Promise<IndividualTrackingData> {
+    try {
+      const response = await apiService.get<IndividualTrackingData>(
+        API_CONFIG.ENDPOINTS.GPS_INDIVIDUAL_TRACKING(imei)
+      );
+      return response;
+    } catch (error) {
+      console.error(`Error fetching individual tracking data for IMEI ${imei}:`, error);
+      throw error;
     }
   }
 }

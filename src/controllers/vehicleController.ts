@@ -1,14 +1,20 @@
-import type { Vehicle, VehicleFormData, PaginatedResponse, ApiResponse, VehicleDetailsResponse, UserVehicle } from '../types/models';
+import type { Vehicle, VehicleFormData, PaginatedResponse, ApiResponse, VehicleDetailsResponse, UserVehicle, MyVehicleResponse, Device } from '../types/models';
 import { apiService } from '../services/apiService';
 import { API_CONFIG } from '../config/api';
 
 class VehicleController {
-  async getVehicles(page: number = 1, limit: number = 10): Promise<PaginatedResponse<Vehicle>> {
+  async getVehicles(page: number = 1, limit: number = 10, userId?: string): Promise<PaginatedResponse<Vehicle>> {
     try {
+      const params: Record<string, string> = {};
+      if (userId) {
+        params.userId = userId;
+      }
+
       const response = await apiService.getPaginated<Vehicle>(
         API_CONFIG.ENDPOINTS.VEHICLES,
         page,
-        limit
+        limit,
+        params
       );
       return response;
     } catch (error) {
@@ -20,7 +26,7 @@ class VehicleController {
   async getVehicle(imei: string): Promise<ApiResponse<VehicleDetailsResponse>> {
     try {
       const response = await apiService.get<ApiResponse<VehicleDetailsResponse>>(
-        API_CONFIG.ENDPOINTS.VEHICLE(imei)
+        API_CONFIG.ENDPOINTS.VEHICLE_BY_IMEI(imei)
       );
       return response;
     } catch (error) {
@@ -32,23 +38,11 @@ class VehicleController {
   async getVehicleByRegNo(regNo: string): Promise<ApiResponse<Vehicle>> {
     try {
       const response = await apiService.get<ApiResponse<Vehicle>>(
-        API_CONFIG.ENDPOINTS.VEHICLE_BY_REG(regNo)
+        API_CONFIG.ENDPOINTS.VEHICLE_BY_REG_NO(regNo)
       );
       return response;
     } catch (error) {
       console.error('Error fetching vehicle by reg no:', error);
-      throw error;
-    }
-  }
-
-  async getVehiclesByType(type: string): Promise<ApiResponse<Vehicle[]>> {
-    try {
-      const response = await apiService.get<ApiResponse<Vehicle[]>>(
-        API_CONFIG.ENDPOINTS.VEHICLES_BY_TYPE(type)
-      );
-      return response;
-    } catch (error) {
-      console.error('Error fetching vehicles by type:', error);
       throw error;
     }
   }
@@ -83,7 +77,7 @@ class VehicleController {
   async updateVehicle(imei: string, data: Partial<VehicleFormData>): Promise<ApiResponse<Vehicle>> {
     try {
       const response = await apiService.put<ApiResponse<Vehicle>>(
-        API_CONFIG.ENDPOINTS.VEHICLE(imei),
+        API_CONFIG.ENDPOINTS.VEHICLE_BY_IMEI(imei),
         data
       );
       return response;
@@ -96,7 +90,7 @@ class VehicleController {
   async deleteVehicle(imei: string): Promise<ApiResponse<null>> {
     try {
       const response = await apiService.delete<ApiResponse<null>>(
-        API_CONFIG.ENDPOINTS.VEHICLE(imei)
+        API_CONFIG.ENDPOINTS.VEHICLE_BY_IMEI(imei)
       );
       return response;
     } catch (error) {
@@ -130,12 +124,36 @@ class VehicleController {
   async setMainUser(vehicleId: string, userAccessId: number): Promise<ApiResponse<UserVehicle>> {
     try {
       const response = await apiService.put<ApiResponse<UserVehicle>>(
-        API_CONFIG.ENDPOINTS.SET_MAIN_USER(vehicleId),
+        API_CONFIG.ENDPOINTS.USER_VEHICLES_SET_MAIN_USER(vehicleId),
         { user_access_id: userAccessId }
       );
       return response;
     } catch (error) {
       console.error('Error setting main user:', error);
+      throw error;
+    }
+  }
+
+  async getMyVehicle(imei: string): Promise<ApiResponse<MyVehicleResponse>> {
+    try {
+      const response = await apiService.get<ApiResponse<MyVehicleResponse>>(
+        API_CONFIG.ENDPOINTS.MY_VEHICLES_BY_IMEI(imei)
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching vehicle:', error);
+      throw error;
+    }
+  }
+
+  async getAvailableDevices(): Promise<ApiResponse<Device[]>> {
+    try {
+      const response = await apiService.get<ApiResponse<Device[]>>(
+        API_CONFIG.ENDPOINTS.DEVICES
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching available devices:', error);
       throw error;
     }
   }

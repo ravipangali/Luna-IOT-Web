@@ -66,6 +66,7 @@ export interface Vehicle {
   created_at?: string;
   updated_at?: string;
   device?: Device;
+  user_access?: UserVehicle[];
 }
 
 export interface UserVehicle {
@@ -158,6 +159,8 @@ export interface VehicleDetailsResponse {
   message: string;
 }
 
+export type MyVehicleResponse = Vehicle;
+
 // Form interfaces for creating/editing
 export type DeviceFormData = Omit<Device, 'id' | 'created_at' | 'updated_at' | 'model'> & {
   iccid?: string;
@@ -191,6 +194,7 @@ export interface VehiclePermissions {
   vehicle_edit: boolean;
   notification: boolean;
   share_tracking: boolean;
+  notes?: string;
 }
 
 export interface AssignVehicleRequest {
@@ -225,4 +229,13 @@ export interface PaginatedResponse<T> {
     total: number;
     total_pages: number;
   };
+}
+
+export interface DashboardStats {
+  total_users: number;
+  total_vehicles: number;
+  total_hits_today: number;
+  total_km_today: number;
+  total_sms_available: number;
+  deleted_backup_data: number;
 } 

@@ -3,7 +3,9 @@ import { gpsController, type GPSData } from '../controllers/gpsController';
 import { websocketService, type GPSUpdate, type LocationUpdate, type StatusUpdate } from './websocketService';
 import { type VehicleStatus, getLiveIconPath, getStatusIconPath, getVehicleStatus } from '../utils/vehicleIcons';
 import { reverseGeocodingService } from './reverseGeocodingService';
-import type { Vehicle } from '../types/models';
+import type { Vehicle, ApiResponse } from '../types/models';
+import { apiService } from './apiService';
+import { API_CONFIG } from '../config/api';
 
 export interface EnhancedVehicleData {
   // Vehicle info
@@ -14,8 +16,8 @@ export interface EnhancedVehicleData {
   vehicleType: string;
   
   // GPS location data
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   speed: number;
   course: number;
   altitude?: number;
@@ -81,6 +83,7 @@ interface VehicleTrackingOptions {
   statusFilter?: VehicleStatus[];
   searchQuery?: string;
   limit?: number;
+  userId?: string;
 }
 
 class EnhancedVehicleTrackingService {
@@ -357,128 +360,47 @@ class EnhancedVehicleTrackingService {
   // Load all vehicles from database with their last GPS data
   public async getAllVehicles(options: VehicleTrackingOptions = {}): Promise<EnhancedVehicleData[]> {
     try {
-      // Get all vehicles from database
-      const vehicleResponse = await vehicleController.getVehicles();
+      // Step 1: Fetch the user's vehicles
+      const vehicleResponse = await vehicleController.getVehicles(1, options.limit || 1000, options.userId);
+      const userVehicles = vehicleResponse.data;
 
-      if (!vehicleResponse.success || !vehicleResponse.data) {
+      if (!userVehicles || userVehicles.length === 0) {
+        this.vehicleCache.clear();
+        this.notifySubscribers();
         return [];
       }
 
-      const vehicles = vehicleResponse.data as Vehicle[];
-      const enhancedVehicles: EnhancedVehicleData[] = [];
+      // Step 2: Fetch the latest GPS data for ALL devices in a single call, bypassing the controller
+      const gpsResponse = await apiService.get<ApiResponse<GPSData[]>>(`${API_CONFIG.ENDPOINTS.GPS}/latest`);
+      const latestGpsData = gpsResponse.data || [];
 
-      // Process each vehicle
-      for (const vehicle of vehicles) {
-        try {
-          // Get latest GPS data for this vehicle (may have null coordinates)
-          const gpsResponse = await gpsController.getLatestGPSDataByIMEI(vehicle.imei);
-          let latestGPS = gpsResponse.success && gpsResponse.data 
-            ? (Array.isArray(gpsResponse.data) ? gpsResponse.data[0] : gpsResponse.data) : undefined;
-
-          // FALLBACK: If GPS data has null coordinates, try to get latest valid coordinates
-          if (latestGPS && (latestGPS.latitude === null || latestGPS.latitude === undefined ||
-                           latestGPS.longitude === null || latestGPS.longitude === undefined)) {
-            console.log(`❌ Latest GPS for ${vehicle.imei} has null coordinates, trying fallback...`);
-            
-            try {
-              const validGPSResponse = await gpsController.getLatestValidGPSDataByIMEI(vehicle.imei);
-              if (validGPSResponse.success && validGPSResponse.data && 
-                  validGPSResponse.data.latitude && validGPSResponse.data.longitude) {
-                // Use valid coordinates but keep other data from latest GPS
-                latestGPS = {
-                  ...latestGPS,
-                  latitude: validGPSResponse.data.latitude,
-                  longitude: validGPSResponse.data.longitude
-                };
-                console.log(`🔄 Database fallback successful for ${vehicle.imei}: lat=${latestGPS.latitude}, lng=${latestGPS.longitude}`);
-              }
-            } catch (fallbackError) {
-              console.error(`Error in database fallback for ${vehicle.imei}:`, fallbackError);
-            }
-          }
-
-          // Create enhanced vehicle data
-          const enhancedVehicle = this.createEnhancedVehicleData(vehicle, latestGPS);
-          
-          // Get reverse geocoding for valid coordinates
-          if (enhancedVehicle.latitude && enhancedVehicle.longitude && !enhancedVehicle.address) {
-            try {
-              const address = await reverseGeocodingService.getAddressFromCoords(
-                enhancedVehicle.latitude, 
-                enhancedVehicle.longitude
-              );
-              if (address) {
-                enhancedVehicle.address = address;
-              }
-            } catch (geocodingError) {
-              console.error(`Error getting address for ${vehicle.imei}:`, geocodingError);
-            }
-          }
-          
-          // Update cache
-          this.vehicleCache.set(vehicle.imei, enhancedVehicle);
-          
-          // Apply filters
-          if (this.passesFilters(enhancedVehicle, options)) {
-            enhancedVehicles.push(enhancedVehicle);
-          }
-        } catch (error) {
-          console.error(`Error processing vehicle ${vehicle.imei}:`, error);
-          
-          // ENHANCED FIX: When GPS API fails, try to get any available GPS data from database
-          // Don't show "no data" unless there's literally no GPS data in database
-          let enhancedVehicle = this.vehicleCache.get(vehicle.imei);
-          
-          if (!enhancedVehicle) {
-            // Try to get any GPS data from database, even old data
-            console.log(`GPS API failed for ${vehicle.imei}, attempting direct database lookup...`);
-            try {
-              const fallbackGPSResponse = await gpsController.getLatestGPSDataByIMEI(vehicle.imei);
-              if (fallbackGPSResponse.success && fallbackGPSResponse.data) {
-                const fallbackGPS = Array.isArray(fallbackGPSResponse.data) ? fallbackGPSResponse.data[0] : fallbackGPSResponse.data;
-                enhancedVehicle = this.createEnhancedVehicleData(vehicle, fallbackGPS);
-                console.log(`Successfully retrieved fallback GPS data for ${vehicle.imei}`);
-              } else {
-                // Truly no GPS data exists
-                enhancedVehicle = this.createEnhancedVehicleData(vehicle, undefined);
-                console.warn(`No GPS data found in database for ${vehicle.imei}`);
-              }
-            } catch (fallbackError) {
-              // Complete API failure - create with no GPS data
-              console.error(`Complete API failure for ${vehicle.imei}:`, fallbackError);
-              enhancedVehicle = this.createEnhancedVehicleData(vehicle, undefined);
-            }
-            this.vehicleCache.set(vehicle.imei, enhancedVehicle);
-          } else {
-            // Use cached data and update vehicle info
-            console.log(`Using cached GPS data for ${vehicle.imei} due to API error`);
-            enhancedVehicle = {
-              ...enhancedVehicle,
-              // Update vehicle info that might have changed
-              reg_no: vehicle.reg_no,
-              name: vehicle.name,
-              vehicleType: vehicle.vehicle_type || 'car',
-              overspeedLimit: vehicle.overspeed || 60,
-              odometer: vehicle.odometer,
-              mileage: vehicle.mileage,
-              min_fuel: vehicle.min_fuel,
-            };
-            this.vehicleCache.set(vehicle.imei, enhancedVehicle);
-          }
-          
-          if (this.passesFilters(enhancedVehicle, options)) {
-            enhancedVehicles.push(enhancedVehicle);
-          }
-        }
+      // Step 3: Create a lookup map for efficient access
+      const gpsDataMap = new Map<string, GPSData>();
+      for (const gps of latestGpsData) {
+        gpsDataMap.set(gps.imei, gps);
       }
 
+      // Step 4: Combine vehicle and GPS data
+      const enhancedVehicles = userVehicles.map(vehicle => {
+        const gpsData = gpsDataMap.get(vehicle.imei);
+        return this.createEnhancedVehicleData(vehicle, gpsData);
+      });
+      
+      // Update the cache
+      this.vehicleCache.clear();
+      for (const vehicle of enhancedVehicles) {
+        this.vehicleCache.set(vehicle.imei, vehicle);
+      }
+      
+      this.notifySubscribers();
       return enhancedVehicles;
+
     } catch (error) {
-      console.error('Error loading vehicles:', error);
-      // Return cached vehicles if API completely fails
-      const cachedVehicles = this.getCachedVehicles();
-      console.log(`API failed, returning ${cachedVehicles.length} cached vehicles`);
-      return cachedVehicles.filter(vehicle => this.passesFilters(vehicle, options));
+      console.error('Error in getAllVehicles:', error);
+      // In case of error, clear the cache and return an empty array to avoid showing stale data
+      this.vehicleCache.clear();
+      this.notifySubscribers();
+      return [];
     }
   }
 
@@ -490,9 +412,9 @@ class EnhancedVehicleTrackingService {
 
       const vehicle = vehicleResponse.data.data;
       
-      // Get latest GPS data
-      const gpsResponse = await gpsController.getLatestGPSDataByIMEI(imei);
-      const latestGPS = gpsResponse.success ? gpsResponse.data : undefined;
+      // Get latest GPS data using the bulk endpoint and filtering
+      const gpsResponse = await apiService.get<ApiResponse<GPSData[]>>(`${API_CONFIG.ENDPOINTS.GPS}/latest`);
+      const latestGPS = gpsResponse.success && gpsResponse.data ? gpsResponse.data.find(d => d.imei === imei) : undefined;
 
       // Create enhanced vehicle data
       const enhancedVehicle = this.createEnhancedVehicleData(vehicle, latestGPS);
@@ -507,129 +429,48 @@ class EnhancedVehicleTrackingService {
 
   // Create enhanced vehicle data from vehicle and GPS data
   private createEnhancedVehicleData(vehicle: Vehicle, gpsData?: GPSData): EnhancedVehicleData {
-    // CRITICAL FIX: Use actual vehicle data from database - never show "Unknown Vehicle"
-    const vehicleName = vehicle.name || `Vehicle ${vehicle.imei.slice(-4)}`;
-    const vehicleRegNo = vehicle.reg_no || vehicle.imei;
-    const vehicleType = vehicle.vehicle_type || 'car';
-    
-    console.log(`🔧 Creating enhanced vehicle data for ${vehicle.imei}:`, {
-      name: vehicleName,
-      reg_no: vehicleRegNo,
-      type: vehicleType,
-      hasGPSData: !!gpsData
-    });
-
-    // Extract GPS coordinates (may be null)
-    const latitude = gpsData?.latitude || 0;
-    const longitude = gpsData?.longitude || 0;
-    const speed = gpsData?.speed || 0;
     const ignition = gpsData?.ignition || 'OFF';
-
-    // Calculate last update time
-    const lastUpdate = gpsData?.timestamp ? new Date(gpsData.timestamp) : new Date();
-    
-    // Determine GPS data availability
+    const speed = gpsData?.speed ?? 0;
+    const overspeedLimit = vehicle.overspeed || 60;
     const hasGPSData = !!gpsData;
-    const hasValidCoordinates = gpsData?.latitude !== null && 
-                               gpsData?.latitude !== undefined && 
-                               gpsData?.longitude !== null && 
-                               gpsData?.longitude !== undefined &&
-                               gpsData.latitude !== 0 && 
-                               gpsData.longitude !== 0;
 
-    // ENHANCED: Determine vehicle status based on GPS data availability and age
-    const status = this.calculateVehicleStatus(
-      speed,
-      ignition,
-      vehicle.overspeed || 60,
-      hasGPSData,
-      lastUpdate
-    );
-
-    // Get icon paths
-    const liveIconPath = getLiveIconPath(vehicleType, status);
-    const statusIconPath = getStatusIconPath(vehicleType, status);
+    // Determine status
+    const status = this.calculateVehicleStatus(speed, ignition, overspeedLimit, hasGPSData, gpsData ? new Date(gpsData.timestamp) : undefined);
     
-    // Connection status reflects WebSocket connection, not GPS data age
-    const isOnline = false; // Will be updated by WebSocket events
-    
-    const enhancedVehicle: EnhancedVehicleData = {
+    return {
       id: vehicle.imei,
       imei: vehicle.imei,
-      reg_no: vehicleRegNo,
-      name: vehicleName, // NEVER "Unknown Vehicle" - always use database name
-      vehicleType: vehicleType,
-      latitude,
-      longitude,
+      reg_no: vehicle.reg_no,
+      name: vehicle.name,
+      vehicleType: vehicle.vehicle_type,
+      latitude: gpsData?.latitude ?? null,
+      longitude: gpsData?.longitude ?? null,
       speed,
-      course: gpsData?.course || 0,
+      course: gpsData?.course ?? 0,
       ignition,
-      altitude: gpsData?.altitude || undefined,
-      satellites: gpsData?.satellites || undefined,
-      isOnline, // For UI display only (green/red dot)
-      status, // Based on GPS data validity and age
-      lastUpdate,
-      connectionStatus: isOnline ? 'connected' : 'disconnected',
-      gsm_signal: gpsData?.gsm_signal || undefined,
-      voltage_level: gpsData?.voltage_level || undefined,
-      overspeedLimit: vehicle.overspeed || 60,
-      liveIconPath,
-      statusIconPath,
+      isOnline: hasGPSData,
+      status,
+      connectionStatus: 'connected',
+      lastUpdate: gpsData ? new Date(gpsData.timestamp) : new Date(0),
+      address: 'Loading...',
+      satellites: gpsData?.satellites,
+      gsm_signal: gpsData?.gsm_signal,
+      voltage_level: gpsData?.voltage_level,
+      device: vehicle.device,
+      liveIconPath: getLiveIconPath(vehicle.vehicle_type, status),
+      statusIconPath: getStatusIconPath(vehicle.vehicle_type, status),
+      overspeedLimit: vehicle.overspeed,
       odometer: vehicle.odometer,
       mileage: vehicle.mileage,
       min_fuel: vehicle.min_fuel,
-      device_status: {
-        activated: gpsData?.device_status === 'ACTIVATED' || true,
-        gps_tracking: gpsData?.gps_tracking === 'ENABLED' || true,
-        oil_connected: gpsData?.oil_electricity === 'CONNECTED' || false,
-        engine_running: ignition === 'ON',
-        satellites: gpsData?.satellites || 0,
-      },
     };
-
-    console.log(`✅ Enhanced vehicle data created for ${vehicle.imei}:`, {
-      name: enhancedVehicle.name,
-      status: enhancedVehicle.status,
-      hasValidCoords: hasValidCoordinates,
-      coordinates: hasValidCoordinates ? `${latitude}, ${longitude}` : 'No valid coords'
-    });
-
-    return enhancedVehicle;
   }
 
-  // Check if vehicle passes the applied filters
-  private passesFilters(vehicle: EnhancedVehicleData, options: VehicleTrackingOptions): boolean {
-    if (!options.includeOffline && !vehicle.isOnline) {
-      return false;
-    }
-
-    if (options.statusFilter && options.statusFilter.length > 0) {
-      if (!options.statusFilter.includes(vehicle.status)) {
-        return false;
-      }
-    }
-
-    if (options.searchQuery) {
-      const searchTerm = options.searchQuery.toLowerCase();
-      const searchableText = [
-        vehicle.reg_no,
-        vehicle.name,
-        vehicle.imei,
-        vehicle.vehicleType
-      ].join(' ').toLowerCase();
-      
-      if (!searchableText.includes(searchTerm)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // Subscribe to vehicle updates
   public subscribe(callback: (vehicles: EnhancedVehicleData[]) => void): () => void {
     this.subscribers.add(callback);
-    return () => this.subscribers.delete(callback);
+    return () => {
+      this.subscribers.delete(callback);
+    };
   }
 
   // Notify all subscribers about updates

@@ -1,229 +1,304 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import { Table } from '../../components/ui';
 import { deviceModelService } from '../../services/deviceModelService';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Modal } from '../../components/ui/Modal';
 import type { DeviceModel } from '../../types/models';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
+import { apiService } from '../../services/apiService';
 
-const DeviceModelIndex: React.FC = () => {
-  const navigate = useNavigate();
+export const DeviceModelIndex: React.FC = () => {
   const [deviceModels, setDeviceModels] = useState<DeviceModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    deviceModel: DeviceModel | null;
-  }>({ open: false, deviceModel: null });
-  const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchDeviceModels();
-  }, []);
-
-  const fetchDeviceModels = async () => {
+  const loadDeviceModels = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await deviceModelService.getAll();
       
       if (response.success && response.data) {
         setDeviceModels(response.data);
+        // For now, we'll set pagination to 1 page since the API doesn't return pagination
+        setCurrentPage(1);
+        setTotalPages(1);
       } else {
-        setError(response.message || 'Failed to fetch device models');
+        console.error('Error loading device models:', response.message);
+        toast.error('Error loading device models. Please try again.');
+        setDeviceModels([]);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch device models');
+    } catch (error) {
+      console.error('Error loading device models:', error);
+      toast.error('Error loading device models. Please try again.');
+      setDeviceModels([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteDialog.deviceModel) return;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      loadDeviceModels();
+      return;
+    }
 
     try {
-      setDeleting(true);
-      const response = await deviceModelService.delete(deleteDialog.deviceModel.id);
+      setLoading(true);
+      const response = await deviceModelService.getAll();
       
-      if (response.success) {
-        await fetchDeviceModels(); // Refresh the list
-        setDeleteDialog({ open: false, deviceModel: null });
+      if (response.success && response.data) {
+        // Filter results based on search query
+        const filteredData = response.data.filter(model =>
+          model.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setDeviceModels(filteredData);
+        setCurrentPage(1);
+        setTotalPages(1);
       } else {
-        setError(response.message || 'Failed to delete device model');
+        console.error('Error searching device models:', response.message);
+        toast.error('Error searching device models. Please try again.');
+        setDeviceModels([]);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete device model');
+    } catch (error) {
+      console.error('Error searching device models:', error);
+      toast.error('Error searching device models. Please try again.');
+      setDeviceModels([]);
     } finally {
-      setDeleting(false);
+      setLoading(false);
     }
   };
 
-  const filteredDeviceModels = deviceModels.filter(model =>
-    model.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDelete = async (deviceModel: DeviceModel) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete device model "${deviceModel.name}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    });
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await deviceModelService.delete(deviceModel.id);
+      
+      if (response.success) {
+        toast.success(`Device model "${deviceModel.name}" deleted successfully!`);
+        loadDeviceModels();
+        
+        Swal.fire({
+          title: 'Deleted!',
+          text: `Device model "${deviceModel.name}" has been deleted.`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error(response.message || 'Failed to delete device model');
+      }
+    } catch (error) {
+      console.error('Error deleting device model:', error);
+      toast.error(error instanceof Error 
+        ? error.message || 'Error deleting device model. Please try again.'
+        : 'Error deleting device model. Please try again.');
+      
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to delete the device model. Please try again.',
+        icon: 'error'
+      });
+    }
+  };
+
+  const handleForceDeleteDeviceModels = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Force Delete Device Model Backup Data?',
+        text: 'This will permanently delete all soft-deleted device models from the database. This action cannot be undone!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete permanently!',
+        cancelButtonText: 'Cancel',
+        input: 'text',
+        inputPlaceholder: 'Type "DELETE" to confirm',
+        inputValidator: (value) => {
+          if (value !== 'DELETE') {
+            return 'You must type "DELETE" to confirm!'
+          }
+        }
+      });
+
+      if (result.isConfirmed) {
+        const response = await apiService.forceDeleteDeviceModelsBackupData();
+        
+        await Swal.fire({
+          title: 'Success!',
+          text: `${response.deleted_count} device model records have been permanently deleted.`,
+          icon: 'success',
+          timer: 3000,
+          showConfirmButton: false
+        });
+      }
+    } catch (error) {
+      console.error('Error force deleting device model backup data:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to delete device model backup data. Please try again.',
+        icon: 'error'
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadDeviceModels();
+  }, []);
+
+  const columns = [
+    { key: 'name', header: 'Name', sortable: true },
+    { 
+      key: 'created_at', 
+      header: 'Created', 
+      sortable: true,
+      render: (deviceModel: DeviceModel) => (
+        <span>{new Date(deviceModel.created_at).toLocaleDateString()}</span>
+      )
+    },
+    { 
+      key: 'updated_at', 
+      header: 'Updated', 
+      sortable: true,
+      render: (deviceModel: DeviceModel) => (
+        <span>{new Date(deviceModel.updated_at).toLocaleDateString()}</span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (deviceModel: DeviceModel) => (
+        <div className="flex space-x-2">
+          <Link
+            to={`/admin/device-models/${deviceModel.id}`}
+            className="text-blue-600 hover:text-blue-800 p-1"
+            title="View"
+          >
+            <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
+          </Link>
+          <Link
+            to={`/admin/device-models/${deviceModel.id}/edit`}
+            className="text-green-600 hover:text-green-800 p-1"
+            title="Edit"
+          >
+            <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
+          </Link>
+          <button
+            onClick={() => handleDelete(deviceModel)}
+            className="text-red-600 hover:text-red-800 p-1"
+            title="Delete"
+          >
+            <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
+          </button>
         </div>
-      </div>
-    );
-  }
+      )
+    }
+  ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col space-y-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Device Models</h1>
-            <p className="text-gray-600">Manage GPS device models</p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Device Model Management</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage your GPS device models</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={handleForceDeleteDeviceModels}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                title="Force Delete Device Model Backup Data"
+              >
+                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
+                <span>Force Delete Device Models</span>
+              </button>
+              <Link
+                to="/admin/device-models/add"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
+                <span>Add Device Model</span>
+              </Link>
+            </div>
           </div>
-          <Button
-            onClick={() => navigate('/admin/device-models/add')}
-            className="flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Device Model</span>
-          </Button>
         </div>
-
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="error">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
 
         {/* Search */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search device models..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search device models by name..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <FontAwesomeIcon 
+                icon={faSearch} 
+                className="w-4 h-4 absolute left-3 top-3 text-gray-400" 
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Search
+            </button>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  loadDeviceModels();
+                }}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Device Models Table */}
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Updated
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredDeviceModels.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                    {searchTerm ? 'No device models found matching your search.' : 'No device models found.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredDeviceModels.map((model) => (
-                  <tr key={model.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {model.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(model.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(model.updated_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/device-models/${model.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/device-models/${model.id}/edit`)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteDialog({ open: true, deviceModel: model })}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Statistics */}
-        <div className="text-sm text-gray-600">
-          Showing {filteredDeviceModels.length} of {deviceModels.length} device models
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <Table
+            data={deviceModels}
+            columns={columns}
+            loading={loading}
+            pagination={{
+              currentPage,
+              totalPages,
+              onPageChange: (_page) => {
+                if (searchQuery) {
+                  return;
+                }
+                loadDeviceModels();
+              }
+            }}
+          />
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, deviceModel: null })}
-        title="Delete Device Model"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Are you sure you want to delete the device model "{deleteDialog.deviceModel?.name}"? 
-            This action cannot be undone.
-          </p>
-          <div className="flex space-x-2 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog({ open: false, deviceModel: null })}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
-};
-
-export default DeviceModelIndex; 
+}; 

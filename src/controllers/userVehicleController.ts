@@ -12,37 +12,37 @@ export class UserVehicleController {
 
   // Assign a single vehicle to a user
   async assignVehicleToUser(request: AssignVehicleRequest): Promise<ApiResponse<UserVehicle>> {
-    return this.apiService.post('/user-vehicles/assign', request);
+    return this.apiService.post('/api/v1/user-vehicles/assign', request);
   }
 
   // Assign multiple vehicles to a user
   async bulkAssignVehiclesToUser(request: BulkAssignRequest): Promise<ApiResponse<UserVehicle[]>> {
-    return this.apiService.post('/user-vehicles/bulk-assign', request);
+    return this.apiService.post('/api/v1/user-vehicles/bulk-assign', request);
   }
 
   // Update permissions for a user-vehicle relationship
   async updateVehiclePermissions(accessId: number, permissions: VehiclePermissions): Promise<ApiResponse<UserVehicle>> {
-    return this.apiService.put(`/user-vehicles/${accessId}/permissions`, permissions);
+    return this.apiService.put(`/api/v1/user-vehicles/${accessId}/permissions`, permissions);
   }
 
   // Revoke user's access to a vehicle
   async revokeVehicleAccess(accessId: number): Promise<ApiResponse<{ message: string }>> {
-    return this.apiService.delete(`/user-vehicles/${accessId}`);
+    return this.apiService.delete(`/api/v1/user-vehicles/${accessId}`);
   }
 
   // Get all vehicle access for a specific user
   async getUserVehicleAccess(userId: number): Promise<ApiResponse<UserVehicle[]>> {
-    return this.apiService.get(`/user-vehicles/user/${userId}`);
+    return this.apiService.get(`/api/v1/user-vehicles/user/${userId}`);
   }
 
   // Get all user access for a specific vehicle
   async getVehicleUserAccess(vehicleId: string): Promise<ApiResponse<UserVehicle[]>> {
-    return this.apiService.get(`/user-vehicles/vehicle/${vehicleId}`);
+    return this.apiService.get(`/api/v1/user-vehicles/vehicle/${vehicleId}`);
   }
 
   // Set a user as the main user for a vehicle
   async setMainUser(vehicleId: string, userAccessId: number): Promise<ApiResponse<UserVehicle>> {
-    return this.apiService.put(`/user-vehicles/vehicle/${vehicleId}/set-main-user`, { user_access_id: userAccessId });
+    return this.apiService.put(`/api/v1/user-vehicles/vehicle/${vehicleId}/set-main-user`, { user_access_id: userAccessId });
   }
 
   // Helper method to check if user has specific permission for a vehicle

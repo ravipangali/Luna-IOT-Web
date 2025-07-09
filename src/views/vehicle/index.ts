@@ -1,4 +1,6 @@
-export { VehicleIndex } from './VehicleIndex';
-export { VehicleAdd } from './VehicleAdd';
-export { VehicleEdit } from './VehicleEdit';
-export { VehicleShow } from './VehicleShow'; 
+export * from './VehicleAdd';
+export * from './VehicleEdit';
+export * from './VehicleIndex';
+export * from './VehicleShow';
+export * from './VehicleAddUser';
+export * from './VehicleEditUserAccess'; 

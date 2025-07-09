@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useLoadScript } from '@react-google-maps/api';
 import { websocketService } from '../../services/websocketService';
 import { enhancedVehicleTrackingService, type EnhancedVehicleData } from '../../services/enhancedVehicleTrackingService';
 import { controlService } from '../../services/controlService';
 import { DeviceStatusVehicleCard, type DeviceStatusVehicleData } from '../../components/ui/DeviceStatusVehicleCard';
-import { GoogleMapWrapper } from '../../components/ui/GoogleMapWrapper';
 import { LiveMap } from '../../components/ui/LiveMap';
+import { GOOGLE_MAPS_CONFIG } from '../../config/googleMaps';
 import { gpsController } from '../../controllers/gpsController';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -25,6 +27,13 @@ interface ConnectionStatus {
 
 export const EnhancedLiveTrackingDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_CONFIG.apiKey,
+    libraries: GOOGLE_MAPS_CONFIG.libraries,
+  });
+
   const [vehicles, setVehicles] = useState<EnhancedVehicleData[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<EnhancedVehicleData[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
@@ -82,6 +91,8 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
 
   // Load vehicles from enhanced service
   const loadVehicles = useCallback(async () => {
+    if (!user) return; // Don't load if no user is logged in
+
     try {
       if (!initialDataLoaded) {
         await loadInitialGPSData();
@@ -89,11 +100,15 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
       
       const options = {
         includeOffline: true, // Always include offline vehicles
-        limit: 1000
+        limit: 1000,
+        userId: isAdmin ? undefined : String(user.id), // Only send userId if not admin
       };
 
       const enhancedVehicles = await enhancedVehicleTrackingService.getAllVehicles(options);
+
+      // Set the real-time data for the list
       setVehicles(enhancedVehicles);
+      
       setLastRefresh(new Date());
       
       // Update stats
@@ -105,7 +120,7 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
       console.error('Error loading vehicles:', error);
       handleApiError(error, 'Failed to load vehicles');
     }
-  }, [initialDataLoaded, loadInitialGPSData]);
+  }, [initialDataLoaded, loadInitialGPSData, user, isAdmin]);
 
   // Apply filters to vehicles
   useEffect(() => {
@@ -137,6 +152,10 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
 
   // Setup WebSocket and initial load
   useEffect(() => {
+    if (!user) {
+      return; // Wait for user to be authenticated
+    }
+
     // Connect to WebSocket
     websocketService.connect();
 
@@ -176,7 +195,7 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
       unsubscribe();
       websocketService.disconnect();
     };
-  }, [loadVehicles]);
+  }, [loadVehicles, user]);
 
   // Handle vehicle selection
   const handleVehicleSelect = useCallback((vehicleId: string) => {
@@ -224,9 +243,8 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
     loadVehicles();
   }, [loadVehicles]);
 
-  // Convert to MapVehicle format for the map component
-  // FIXED: Ensure map markers and vehicle cards use the same status
-  const mapVehicles: MapVehicle[] = filteredVehicles.map(vehicle => ({
+  // Create a separate data source for the map from the live vehicle data
+  const liveMapVehicles: MapVehicle[] = vehicles.map(vehicle => ({
     id: vehicle.id,
     imei: vehicle.imei,
     reg_no: vehicle.reg_no,
@@ -237,49 +255,22 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
     course: vehicle.course,
     ignition: vehicle.ignition,
     lastUpdate: vehicle.lastUpdate,
-    isOnline: vehicle.isOnline, // For connection indicator only
+    isOnline: vehicle.isOnline,
     vehicleType: vehicle.vehicleType,
     overspeedLimit: vehicle.overspeedLimit,
-    
-    // CRITICAL FIX: Pass the already calculated GPS-based status to map
-    // This ensures map markers show the same status as vehicle cards
-    hasGPSData: vehicle.status !== 'nodata', // Has GPS data if not showing 'nodata'
-    isReceivingLiveData: vehicle.isOnline, // For UI connection indicators
-    
-    // PASS THE CALCULATED STATUS: Add status to MapVehicle
-    vehicleStatus: vehicle.status, // Pre-calculated status from service
+    hasGPSData: vehicle.status !== 'nodata',
+    isReceivingLiveData: vehicle.isOnline,
+    vehicleStatus: vehicle.status,
   }));
 
   // Filter vehicles for map display - only those with valid coordinates
-  // This implements the user's requirement: show all vehicles in cards but only valid coordinates on map
-  const mapVehiclesWithValidCoords = mapVehicles.filter(vehicle => {
-    // Filter out vehicles with invalid coordinates (0,0 or null)
-    const hasValidCoords = vehicle.latitude !== 0 && vehicle.longitude !== 0 && 
-                          vehicle.latitude && vehicle.longitude;
-    
-    if (!hasValidCoords) {
-      console.log(`🚫 Filtering out ${vehicle.reg_no} from map - no valid coordinates (lat: ${vehicle.latitude}, lng: ${vehicle.longitude})`);
-      
-      // Trigger fallback update for vehicles with null coordinates
-      setTimeout(async () => {
-        try {
-          const validGPSResponse = await gpsController.getLatestValidGPSDataByIMEI(vehicle.imei);
-          if (validGPSResponse.success && validGPSResponse.data && 
-              validGPSResponse.data.latitude && validGPSResponse.data.longitude) {
-            console.log(`🔄 Found fallback coordinates for ${vehicle.reg_no}: ${validGPSResponse.data.latitude}, ${validGPSResponse.data.longitude}`);
-            // Update the enhanced vehicle tracking service
-            await enhancedVehicleTrackingService.updateVehiclesWithFallback();
-          }
-        } catch (error) {
-          console.error(`Error getting fallback for ${vehicle.reg_no}:`, error);
-        }
-      }, 1000);
-      
-      return false;
-    }
-    
-    return true;
-  });
+  const liveMapVehiclesWithValidCoords = liveMapVehicles.filter(
+    (vehicle): vehicle is MapVehicle & { latitude: number; longitude: number } =>
+      vehicle.latitude != null &&
+      vehicle.longitude != null &&
+      vehicle.latitude !== 0 &&
+      vehicle.longitude !== 0
+  );
 
   // Transform EnhancedVehicleData to DeviceStatusVehicleData format
   const transformToDeviceStatusData = (vehicle: EnhancedVehicleData): DeviceStatusVehicleData => {
@@ -292,8 +283,8 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
       reg_no: vehicle.reg_no,
       name: vehicle.name,
       vehicleType: vehicle.vehicleType,
-      latitude: vehicle.latitude,
-      longitude: vehicle.longitude,
+      latitude: vehicle.latitude ?? 0,
+      longitude: vehicle.longitude ?? 0,
       speed: vehicle.speed,
       course: vehicle.course,
       ignition: vehicle.ignition,
@@ -529,22 +520,28 @@ export const EnhancedLiveTrackingDashboard: React.FC = () => {
 
         {/* Right Panel - Map */}
         <div className="flex-1 relative">
-          <GoogleMapWrapper>
-            {/* 
-              IMPORTANT: 
-              - filteredVehicles (left panel cards): Show ALL vehicles with GPS data (even null coordinates) for status display
-              - mapVehiclesWithValidCoords (map markers): Only show vehicles with valid coordinates (not null, not 0,0)
-              This implements the requirement: vehicle status based on ANY GPS data, map markers only when valid coordinates exist
-            */}
+          {loadError && (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 text-red-700 p-4">
+              <h3 className="text-xl font-bold mb-2">Map Error</h3>
+              <p className="text-center">Could not load Google Maps. Please check your API key and Google Cloud Console configuration.</p>
+              <p className="text-center text-sm mt-2 font-mono bg-red-100 p-2 rounded">{loadError.message}</p>
+            </div>
+          )}
+          {!isLoaded && !loadError && (
+            <div className="flex items-center justify-center h-full bg-gray-100">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading Google Maps...</p>
+              </div>
+            </div>
+          )}
+          {isLoaded && !loadError && (
             <LiveMap 
-              vehicles={mapVehiclesWithValidCoords}
+              vehicles={liveMapVehiclesWithValidCoords}
               selectedVehicle={selectedVehicle || undefined}
               onVehicleSelect={handleVehicleSelect}
-              // ENHANCED: Remove fixed center to enable auto-fit for all vehicles
-              // center={[27.7172, 85.3240]} // Removed fixed center
-              // zoom={13} // Removed fixed zoom
             />
-          </GoogleMapWrapper>
+          )}
         </div>
       </div>
     </div>

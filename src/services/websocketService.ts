@@ -1,4 +1,5 @@
 import { buildAPIUrls } from '../utils/vpsHelper';
+import { authService } from './authService';
 
 export interface WebSocketMessage {
   type: string;
@@ -154,11 +155,19 @@ class WebSocketService {
       return;
     }
 
+    const token = authService.getToken();
+    if (!token) {
+      console.warn('🔌 WebSocket connection aborted: No authentication token found.');
+      return;
+    }
+
     this.connectionState = 'connecting';
     console.log('🔄 Attempting to connect to WebSocket...');
 
     try {
-      this.ws = new WebSocket(this.url);
+      // Append auth token to URL
+      const urlWithToken = `${this.url}?token=${token}`;
+      this.ws = new WebSocket(urlWithToken);
       this.setupEventListeners();
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);

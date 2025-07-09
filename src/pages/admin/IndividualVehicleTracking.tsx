@@ -16,60 +16,13 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiService } from '@/services/apiService';
 import { vehicleController } from '@/controllers/vehicleController';
+import { gpsController, type GPSData as ImportedGPSData } from '@/controllers/gpsController';
+import { type Vehicle } from '@/types/models';
 import { getLiveIconPath, getStatusIconPath } from '@/utils/vehicleIcons';
 import { API_CONFIG } from '@/config/api';
 
 // Types
-interface Vehicle {
-  imei: string;
-  reg_no: string;
-  name: string;
-  vehicle_type: string;
-  device?: {
-    sim_no: string;
-    sim_operator: string;
-  };
-}
-
-interface GPSData {
-  id?: number;
-  imei: string;
-  timestamp: string;
-  latitude?: number;
-  longitude?: number;
-  speed?: number;
-  course?: number;
-  altitude?: number;
-  ignition: string;
-  charger: string;
-  gps_tracking: string;
-  oil_electricity: string;
-  device_status: string;
-  voltage_level?: number;
-  voltage_status: string;
-  gsm_signal?: number;
-  gsm_status: string;
-  satellites?: number;
-  device?: {
-    sim_no: string;
-    sim_operator: string;
-  };
-  vehicle?: Vehicle;
-}
-
-interface IndividualTrackingData {
-  success: boolean;
-  imei: string;
-  message: string;
-  has_status: boolean;
-  has_location: boolean;
-  status_data?: GPSData;
-  location_data?: GPSData;
-  location_is_historical?: boolean;
-}
-
 interface WebSocketMessage {
   type: string;
   timestamp: string;
@@ -122,6 +75,10 @@ interface StatusUpdate {
   is_moving: boolean;
   last_seen: string;
   connection_status: string;
+}
+
+interface VehicleGPSData extends ImportedGPSData {
+  vehicle?: Vehicle; // To hold associated vehicle data
 }
 
 interface ApiError {
@@ -223,8 +180,8 @@ const IndividualVehicleTracking: React.FC = () => {
 
   // State
   const [vehicleInfo, setVehicleInfo] = useState<Vehicle | null>(null);
-  const [statusData, setStatusData] = useState<GPSData | null>(null);
-  const [locationData, setLocationData] = useState<GPSData | null>(null);
+  const [statusData, setStatusData] = useState<VehicleGPSData | null>(null);
+  const [locationData, setLocationData] = useState<VehicleGPSData | null>(null);
   const [currentAddress, setCurrentAddress] = useState<string>('Fetching location...');
   const [isHistoricalLocation, setIsHistoricalLocation] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -235,6 +192,7 @@ const IndividualVehicleTracking: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [mapRotationEnabled, setMapRotationEnabled] = useState<boolean>(false);
   const [currentBearing, setCurrentBearing] = useState<number>(0);
+  const [isMapReady, setIsMapReady] = useState<boolean>(false);
 
   // Refs
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -340,58 +298,47 @@ const IndividualVehicleTracking: React.FC = () => {
 
   // Initial data fetch from database
   const fetchInitialData = useCallback(async () => {
-    if (!imei) return;
+    if (!imei) {
+      setError('IMEI is missing from the URL.');
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      setError(null);
-
-      console.log('🔍 Fetching initial data for IMEI:', imei);
-
-      // Fetch vehicle info and combined tracking data
       const [vehicleResponse, trackingResponse] = await Promise.all([
         vehicleController.getVehicle(imei),
-        apiService.get<IndividualTrackingData>(`/api/v1/gps/${imei}/individual-tracking`)
+        gpsController.getIndividualTrackingData(imei),
       ]);
 
-      console.log('📋 Vehicle response:', vehicleResponse);
-      console.log('📊 Tracking response:', trackingResponse);
-
-      // Handle vehicle info
-      if (vehicleResponse.success && vehicleResponse.data) {
+      if (vehicleResponse && vehicleResponse.data) {
         setVehicleInfo(vehicleResponse.data.data);
-        console.log('✅ Vehicle info loaded:', vehicleResponse.data.data);
       } else {
-        throw new Error(vehicleResponse.message || 'Vehicle not found');
+        throw new Error('Failed to load vehicle details');
       }
 
-      // Handle tracking data
       if (trackingResponse.success) {
         if (trackingResponse.has_status && trackingResponse.status_data) {
-          setStatusData(trackingResponse.status_data);
+          setStatusData(trackingResponse.status_data as VehicleGPSData);
         }
-
         if (trackingResponse.has_location && trackingResponse.location_data) {
-          setLocationData(trackingResponse.location_data);
-          setIsHistoricalLocation(trackingResponse.location_is_historical || false);
-
-          // Initial reverse geocoding for address (only on first load)
-          if (trackingResponse.location_data.latitude && trackingResponse.location_data.longitude) {
-            await reverseGeocode(trackingResponse.location_data.latitude, trackingResponse.location_data.longitude);
-          }
+          setLocationData(trackingResponse.location_data as VehicleGPSData);
+          setIsHistoricalLocation(trackingResponse.location_is_historical ?? false);
         }
+        setLastUpdated(new Date());
+      } else {
+        throw new Error(trackingResponse.message || 'Failed to load tracking data');
       }
 
-      setLastUpdated(new Date());
-      setIsInitialized(true);
     } catch (err) {
-      console.error('❌ Error fetching initial data:', err);
       const apiError = err as ApiError;
-      setError(apiError.response?.data?.message || apiError.message || 'Failed to fetch data');
+      console.error('Error loading initial data:', apiError);
+      setError(apiError.response?.data?.message || apiError.message || 'Failed to load vehicle data.');
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
-  }, [imei, reverseGeocode]);
+  }, [imei]);
 
   // Wait for Google Maps to be ready
   const waitForGoogleMaps = useCallback(() => {
@@ -746,7 +693,7 @@ const IndividualVehicleTracking: React.FC = () => {
             const locationUpdate = message.data as LocationUpdate;
             
             if (locationUpdate.location_valid && locationUpdate.latitude && locationUpdate.longitude) {
-              const newLocationData: GPSData = {
+              const newLocationData: VehicleGPSData = {
                 imei: locationUpdate.imei,
                 timestamp: locationUpdate.timestamp,
                 latitude: locationUpdate.latitude,
@@ -759,9 +706,13 @@ const IndividualVehicleTracking: React.FC = () => {
                 gps_tracking: statusData?.gps_tracking || 'ENABLED',
                 oil_electricity: statusData?.oil_electricity || 'CONNECTED',
                 device_status: statusData?.device_status || 'ACTIVATED',
+                voltage_level: statusData?.voltage_level,
                 voltage_status: statusData?.voltage_status || 'Normal',
+                gsm_signal: statusData?.gsm_signal,
                 gsm_status: statusData?.gsm_status || 'Good',
-                vehicle: vehicleInfo || undefined
+                vehicle: vehicleInfo || undefined,
+                satellites: statusData?.satellites || 0,
+                protocol_name: locationUpdate.protocol_name,
               };
 
               setLocationData(newLocationData);
@@ -919,7 +870,7 @@ const IndividualVehicleTracking: React.FC = () => {
             const statusUpdate = message.data as StatusUpdate;
 
             // Only update fields that are not null/undefined
-            const newStatusData: GPSData = {
+            const newStatusData: VehicleGPSData = {
               // Always update these fields
               imei: statusUpdate.imei,
               timestamp: statusUpdate.timestamp,
@@ -934,7 +885,7 @@ const IndividualVehicleTracking: React.FC = () => {
                 : statusData?.speed,
                 
               // Preserve course data for bearing display
-              course: statusData?.course,
+              course: locationData?.course,
                 
               // Only update ignition if provided
               ignition: statusUpdate.ignition !== undefined && statusUpdate.ignition !== null
@@ -972,7 +923,8 @@ const IndividualVehicleTracking: React.FC = () => {
                 ? statusUpdate.device_status.satellites
                 : statusData?.satellites,
                 
-              vehicle: vehicleInfo || undefined
+              vehicle: vehicleInfo || undefined,
+              protocol_name: statusUpdate.protocol_name,
             };
             
             console.log('📊 Received status update:', statusUpdate);
@@ -1021,15 +973,21 @@ const IndividualVehicleTracking: React.FC = () => {
   // Effects
   useEffect(() => {
     if (!imei) return;
+    
+    // Set map as ready once Google Maps script is loaded
+    waitForGoogleMaps().then(() => {
+      setIsMapReady(true);
+    });
+    
     fetchInitialData();
-  }, [imei, fetchInitialData]);
+  }, [imei, fetchInitialData, waitForGoogleMaps]);
 
-  // Initialize map when data is ready
+  // Initialize map ONLY when map is ready and we have location data
   useEffect(() => {
-    if (isInitialized) {
+    if (isMapReady && locationData?.latitude && locationData?.longitude) {
       initializeMap();
     }
-  }, [isInitialized, initializeMap]);
+  }, [isMapReady, locationData, initializeMap]);
 
   // 1-minute timer for reverse geocoding refresh
   useEffect(() => {
@@ -1124,7 +1082,7 @@ const IndividualVehicleTracking: React.FC = () => {
   }, [locationData, vehicleInfo]);
 
   useEffect(() => {
-    if (isInitialized && vehicleInfo) {
+    if (isInitialized && vehicleInfo && mapRef.current) {
       connectWebSocket();
     }
     return () => {
@@ -1213,23 +1171,25 @@ const IndividualVehicleTracking: React.FC = () => {
               <div className="h-8 w-px bg-gray-300"></div>
               
               <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <img
-                    src={getStatusIconPath(vehicleInfo.vehicle_type, 'idle')}
-                    alt={vehicleInfo.vehicle_type}
-                    className="w-10 h-10 object-contain"
-                  />
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                    statusData?.ignition === 'ON' ? 'bg-green-500' : 'bg-gray-400'
-                  }`}></div>
-                </div>
+                {vehicleInfo && (
+                  <div className="relative">
+                    <img
+                      src={getStatusIconPath(vehicleInfo.vehicle_type, 'idle')}
+                      alt={vehicleInfo.vehicle_type}
+                      className="w-10 h-10 object-contain"
+                    />
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                      statusData?.ignition === 'ON' ? 'bg-green-500' : 'bg-gray-400'
+                    }`}></div>
+                  </div>
+                )}
                 
                 <div className="min-w-0 flex-1">
                   <h1 className="text-xl font-bold text-gray-900 truncate">
-                    {vehicleInfo.reg_no}
+                    {vehicleInfo?.reg_no}
                   </h1>
                   <p className="text-sm text-gray-500 truncate">
-                    {vehicleInfo.name} • {vehicleInfo.imei}
+                    {vehicleInfo?.name} • {vehicleInfo?.imei}
                   </p>
                 </div>
               </div>

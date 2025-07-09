@@ -12,6 +12,8 @@ import {
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import type { VehiclePermissions } from '../../types/models';
 
+type PermissionFlag = Exclude<keyof VehiclePermissions, 'notes'>;
+
 interface VehiclePermissionsSelectorProps {
   permissions: VehiclePermissions;
   onChange: (permissions: VehiclePermissions) => void;
@@ -20,7 +22,7 @@ interface VehiclePermissionsSelectorProps {
 }
 
 interface PermissionConfig {
-  key: keyof VehiclePermissions;
+  key: PermissionFlag;
   label: string;
   description: string;
   icon: IconDefinition;
@@ -85,7 +87,7 @@ export const VehiclePermissionsSelector: React.FC<VehiclePermissionsSelectorProp
   disabled = false,
   showDescriptions = true
 }) => {
-  const handlePermissionChange = (key: keyof VehiclePermissions, value: boolean) => {
+  const handlePermissionChange = (key: PermissionFlag, value: boolean) => {
     if (disabled) return;
 
     const newPermissions = { ...permissions };

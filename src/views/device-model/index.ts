@@ -1,4 +1,4 @@
-export { default as DeviceModelIndex } from './DeviceModelIndex';
-export { default as DeviceModelAdd } from './DeviceModelAdd';
-export { default as DeviceModelEdit } from './DeviceModelEdit';
-export { default as DeviceModelShow } from './DeviceModelShow'; 
+export { DeviceModelIndex } from './DeviceModelIndex';
+export { DeviceModelAdd } from './DeviceModelAdd';
+export { DeviceModelEdit } from './DeviceModelEdit';
+export { DeviceModelShow } from './DeviceModelShow'; 

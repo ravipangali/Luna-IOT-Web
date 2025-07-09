@@ -2,7 +2,9 @@
 export const GOOGLE_MAPS_CONFIG = {
   // You'll need to get your API key from Google Cloud Console
   // Enable the following APIs: Maps JavaScript API, Geocoding API, Directions API
-  apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC4oO2oBMNzhEhLCmD2i9Ts9ljplYpsCVg',
+  // IMPORTANT: Set your Google Maps API key in a .env file
+  // VITE_GOOGLE_MAPS_API_KEY=YOUR_API_KEY
+  apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
   
   // Default map settings
   defaultCenter: {

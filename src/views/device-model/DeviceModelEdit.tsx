@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import { deviceModelService } from '../../services/deviceModelService';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import type { DeviceModelFormData } from '../../types/models';
+import { toast } from 'react-toastify';
 
-const DeviceModelEdit: React.FC = () => {
+export const DeviceModelEdit: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<DeviceModelFormData>({
     name: '',
@@ -30,7 +27,6 @@ const DeviceModelEdit: React.FC = () => {
   const fetchDeviceModel = async (deviceModelId: number) => {
     try {
       setLoadingData(true);
-      setError(null);
       const response = await deviceModelService.getById(deviceModelId);
       
       if (response.success && response.data) {
@@ -38,18 +34,20 @@ const DeviceModelEdit: React.FC = () => {
           name: response.data.name,
         });
       } else {
-        setError(response.message || 'Failed to fetch device model');
+        throw new Error(response.message || 'Failed to fetch device model');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch device model');
+    } catch (error) {
+      console.error('Error loading device model:', error);
+      toast.error('Error loading device model. Please try again.');
     } finally {
       setLoadingData(false);
     }
   };
 
-  const validateForm = (): boolean => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     const newErrors: Partial<DeviceModelFormData> = {};
-
     if (!formData.name.trim()) {
       newErrors.name = 'Device model name is required';
     } else if (formData.name.trim().length < 2) {
@@ -58,43 +56,39 @@ const DeviceModelEdit: React.FC = () => {
       newErrors.name = 'Device model name must be less than 100 characters';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
     if (!id) {
-      setError('Invalid device model ID');
+      toast.error('Invalid device model ID');
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
-      
       const response = await deviceModelService.update(parseInt(id), {
         name: formData.name.trim(),
       });
       
       if (response.success) {
+        toast.success('Device model updated successfully!');
         navigate('/admin/device-models');
       } else {
-        setError(response.message || 'Failed to update device model');
+        throw new Error(response.message || 'Failed to update device model');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update device model');
+    } catch (error) {
+      console.error('Error updating device model:', error);
+      toast.error(error instanceof Error 
+        ? error.message || 'Error updating device model. Please try again.'
+        : 'Error updating device model. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof DeviceModelFormData, value: string) => {
+  const handleChange = (field: keyof DeviceModelFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -103,98 +97,91 @@ const DeviceModelEdit: React.FC = () => {
 
   if (loadingData) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+              <p className="mt-2 text-sm text-gray-500">Loading device model data...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center space-x-4 mb-6">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/admin/device-models')}
-            className="flex items-center space-x-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Device Models</span>
-          </Button>
+        <div className="mb-6">
+          <div className="flex items-center space-x-4">
+            <Link
+              to="/admin/device-models"
+              className="flex items-center justify-center w-10 h-10 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4 text-gray-600" />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Edit Device Model</h1>
+              <p className="text-sm text-gray-500 mt-1">Update device model information</p>
+            </div>
+          </div>
         </div>
 
         {/* Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit Device Model</CardTitle>
-            <CardDescription>Update device model information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Error Alert */}
-            {error && (
-              <Alert variant="error" className="mb-6">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Field */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              {/* Device Model Name */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Device Model Name *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Device Model Name <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  id="name"
+                <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Enter device model name (e.g., GT06N, ST901, etc.)"
-                  error={errors.name}
-                  className="w-full"
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Enter device model name (e.g., GT06N, TK103, etc.)"
                 />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-                )}
+                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                <p className="text-gray-500 text-sm mt-1">
+                  A descriptive name for the GPS device model
+                </p>
               </div>
+            </div>
 
-              {/* Help Text */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">Device Model Information</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Device models help categorize GPS tracking devices</li>
-                  <li>• Use clear, descriptive names (e.g., "GT06N", "ST901A", "Concox GT06")</li>
-                  <li>• This helps in device management and troubleshooting</li>
-                </ul>
-              </div>
+            {/* Actions */}
+            <div className="flex justify-end space-x-3 pt-6 border-t">
+              <Link
+                to="/admin/device-models"
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                disabled={loading}
+              >
+                <FontAwesomeIcon icon={faSave} className="w-4 h-4" />
+                <span>{loading ? 'Updating...' : 'Update Device Model'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
 
-              {/* Form Actions */}
-              <div className="flex space-x-3 pt-6 border-t border-gray-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/admin/device-models')}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center space-x-2"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>{loading ? 'Updating...' : 'Update Device Model'}</span>
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {/* Help Text */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-6">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">Device Model Information</h3>
+          <ul className="text-sm text-blue-700 space-y-1">
+            <li>• Device models help categorize and organize GPS tracking devices</li>
+            <li>• Use clear, descriptive names (e.g., "GT06N", "ST901A", "Concox GT06")</li>
+            <li>• This helps in device management and troubleshooting</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
-};
-
-export default DeviceModelEdit; 
+}; 

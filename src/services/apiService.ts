@@ -1,10 +1,10 @@
 import { buildAPIUrls } from '../utils/vpsHelper';
 import { API_CONFIG } from '../config/api';
-import type { PaginatedResponse, ApiResponse } from '../types/models';
+import type { PaginatedResponse, ApiResponse, DashboardStats } from '../types/models';
 import { authService } from './authService';
 
 // API Error class for better error handling
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   
   constructor(status: number, message: string) {
@@ -266,34 +266,68 @@ class ApiService {
     return this.withRetry(() => this.fetchWithAuth<T>(url, { method: 'DELETE' }));
   }
 
-  // GET request with pagination
+  // Dashboard stats
+  async getDashboardStats(): Promise<DashboardStats> {
+    return this.get(API_CONFIG.ENDPOINTS.DASHBOARD_STATS);
+  }
+
+  // Force delete methods
+  async forceDeleteAllBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.delete(API_CONFIG.ENDPOINTS.DASHBOARD_FORCE_DELETE_BACKUP);
+  }
+
+  async forceDeleteUsersBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.delete(API_CONFIG.ENDPOINTS.USERS_FORCE_DELETE_BACKUP);
+  }
+
+  async forceDeleteDevicesBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.delete(API_CONFIG.ENDPOINTS.DEVICES_FORCE_DELETE_BACKUP);
+  }
+
+  async forceDeleteVehiclesBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.delete(API_CONFIG.ENDPOINTS.VEHICLES_FORCE_DELETE_BACKUP);
+  }
+
+  async forceDeleteDeviceModelsBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
+    return this.delete(API_CONFIG.ENDPOINTS.DEVICE_MODELS_FORCE_DELETE_BACKUP);
+  }
+
+  // Get paginated data
   async getPaginated<T>(
     endpoint: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    params: Record<string, string> = {}
   ): Promise<PaginatedResponse<T>> {
-    const url = `${this.baseURL}${endpoint}?page=${page}&limit=${limit}`;
+    const queryParams = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...params,
+    });
+    
+    const url = `${this.baseURL}${endpoint}?${queryParams.toString()}`;
+    
     return this.withRetry(() => this.fetchWithAuth<PaginatedResponse<T>>(url, { method: 'GET' }));
   }
 
-  // Health check (public endpoint)
+  // Health check
   async healthCheck(): Promise<Record<string, unknown>> {
-    const url = `${this.baseURL}${API_CONFIG.ENDPOINTS.HEALTH}`;
+    const url = `${this.baseURL}/health`;
     return this.fetchWithErrorHandling(url, { method: 'GET' });
   }
 
-  // Test connection
+  // Test connection to server
   async testConnection(): Promise<boolean> {
     try {
       await this.healthCheck();
       return true;
     } catch (error) {
-      console.error('Connection test failed:', error);
+      console.error('API connection test failed:', error);
       return false;
     }
   }
 
-  // Special method for creating users to handle password field
+  // User operations
   async createUser(userData: {
     name: string;
     phone: string;
@@ -302,31 +336,14 @@ class ApiService {
     role: number;
     image?: string;
   }): Promise<ApiResponse<unknown>> {
-    // Ensure password is a string, not undefined
-    if (!userData.password || typeof userData.password !== 'string' || userData.password.trim() === '') {
-      throw new ApiError(400, 'Password is required and must be a non-empty string');
-    }
+    const endpoint = API_CONFIG.ENDPOINTS.USERS;
     
-    // Create a new object with just the required fields to avoid any serialization issues
-    const userDataToSend = {
-      name: userData.name,
-      phone: userData.phone,
-      email: userData.email,
-      password: userData.password,
-      role: userData.role,
-      image: userData.image || ''
-    };
+    // Add OTP to request - assuming it's required for user creation via admin
+    const dataWithOtp = { ...userData, otp: '000000' }; // Placeholder OTP
     
-    console.log('Creating user with data:', userDataToSend);
-    
-    // Use fetchWithAuth to include authentication headers
-    return await this.fetchWithAuth<ApiResponse<unknown>>(`${this.baseURL}/api/v1/users`, {
-      method: 'POST',
-      body: JSON.stringify(userDataToSend),
-    });
+    return this.post<ApiResponse<unknown>>(endpoint, dataWithOtp);
   }
 
-  // Special method for updating users with password changes
   async updateUser(
     userId: string,
     userData: {
@@ -338,30 +355,20 @@ class ApiService {
       image?: string;
     }
   ): Promise<ApiResponse<unknown>> {
-    // Ensure password is valid if provided
-    if (userData.password && (typeof userData.password !== 'string' || userData.password.trim() === '')) {
-      throw new ApiError(400, 'Password must be a non-empty string');
-    }
-    
-    console.log('Updating user with data:', { ...userData, password: userData.password ? '******' : undefined });
-    
-    // Use fetchWithAuth to include authentication headers
-    return await this.fetchWithAuth<ApiResponse<unknown>>(`${this.baseURL}/api/v1/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
+    const endpoint = API_CONFIG.ENDPOINTS.USER_BY_ID(userId);
+    return this.put<ApiResponse<unknown>>(endpoint, userData);
   }
 
-  // Add methods for user image operations
   async getUserImage(id: number) {
-    return this.get(`/users/${id}/image`);
+    const endpoint = `${API_CONFIG.ENDPOINTS.USERS}/${id}/image`;
+    return this.get<Blob>(endpoint);
   }
 
   async deleteUserImage(id: number) {
-    return this.delete(`/users/${id}/image`);
+    const endpoint = `${API_CONFIG.ENDPOINTS.USERS}/${id}/image`;
+    return this.delete<ApiResponse<unknown>>(endpoint);
   }
 }
 
-// Export singleton instance
 export const apiService = new ApiService();
 export default apiService; 

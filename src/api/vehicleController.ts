@@ -5,8 +5,9 @@ export const getVehicles = async (): Promise<ApiResponse<Vehicle[]>> => {
   return apiService.get<ApiResponse<Vehicle[]>>('/vehicles');
 };
 
-export const getVehicle = async (imei: string): Promise<VehicleDetailsResponse> => {
-  return apiService.get<VehicleDetailsResponse>(`/vehicles/${imei}`);
+export const getVehicle = async (imei: string): Promise<Vehicle> => {
+  const response = await apiService.get<VehicleDetailsResponse>(`/vehicles/${imei}`);
+  return response.data;
 };
 
 export const createVehicle = async (vehicleData: VehicleFormData): Promise<ApiResponse<Vehicle>> => {
@@ -21,4 +22,4 @@ export const setMainUser = async (vehicleId: string, userAccessId: number): Prom
   return apiService.put<ApiResponse<UserVehicle>>(`/user-vehicles/vehicle/${vehicleId}/set-main-user`, {
     user_access_id: userAccessId,
   });
-}; 
+};
