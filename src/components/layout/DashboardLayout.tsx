@@ -11,7 +11,8 @@ import {
   faChartLine,
   faMapMarkerAlt,
   faClipboardList,
-  faMicrochip
+  faMicrochip,
+  faBell
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../context/AuthContext';
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Device Models', href: '/admin/device-models', icon: faMicrochip },
   { name: 'All Vehicles', href: '/admin/vehicles', icon: faCar },
   { name: 'Users', href: '/admin/users', icon: faUsers },
+  { name: 'Popups', href: '/admin/popups', icon: faBell },
   { name: 'Settings', href: '/admin/settings', icon: faCog },
 ];
 

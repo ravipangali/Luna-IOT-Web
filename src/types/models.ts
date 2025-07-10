@@ -245,4 +245,32 @@ export interface Setting {
   my_pay_balance: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface Popup {
+  id: number;
+  title: string;
+  is_active: boolean;
+  image: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PopupFormValues {
+  title: string;
+  is_active: boolean;
+  image: string;
+}
+
+export interface PopupResponse {
+  success: boolean;
+  data: Popup;
+  message: string;
+}
+
+export interface PopupsResponse {
+  success: boolean;
+  data: Popup[];
+  count: number;
+  message: string;
 } 

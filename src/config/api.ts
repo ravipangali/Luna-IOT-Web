@@ -106,6 +106,11 @@ export const API_CONFIG = {
     USER_VEHICLES_UPDATE_PERMISSIONS: (accessId: string) => `/api/v1/user-vehicles/update-permissions/${accessId}`,
     USER_VEHICLES_SET_MAIN_USER: (accessId: string) => `/api/v1/user-vehicles/set-main-user/${accessId}`,
 
+    // Popups
+    POPUPS: '/api/v1/popups',
+    POPUP_BY_ID: (id: string) => `/api/v1/popups/${id}`,
+    POPUP_IMAGE: (id: string) => `/api/v1/popups/${id}/image`,
+
     // Health
     HEALTH: '/health',
   }

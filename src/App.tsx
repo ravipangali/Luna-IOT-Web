@@ -18,6 +18,10 @@ import { DeviceIndex, DeviceAdd, DeviceEdit, DeviceShow } from './views/device';
 import { DeviceModelIndex, DeviceModelAdd, DeviceModelEdit, DeviceModelShow } from './views/device-model';
 import { VehicleIndex, VehicleAdd, VehicleEdit, VehicleShow, VehicleAddUser, VehicleEditUserAccess } from './views/vehicle';
 import { UserIndex, UserAdd, UserEdit, UserShow } from './views/user';
+import PopupIndex from "./views/popup";
+import CreatePopup from "./views/popup/CreatePopup";
+import EditPopup from "./views/popup/EditPopup";
+import ShowPopup from "./views/popup/ShowPopup";
 
 function App() {
   return (
@@ -79,6 +83,12 @@ function App() {
             <Route path="users/:id" element={<UserShow />} />
             <Route path="users/:id/edit" element={<UserEdit />} />
             
+            {/* Popup Routes */}
+            <Route path="popups" element={<PopupIndex />} />
+            <Route path="popups/create" element={<CreatePopup />} />
+            <Route path="popups/:id" element={<ShowPopup />} />
+            <Route path="popups/edit/:id" element={<EditPopup />} />
+
             {/* Settings Routes */}
             <Route path="settings" element={
               <div className="text-center py-12">

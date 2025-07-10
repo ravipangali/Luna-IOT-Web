@@ -5,4 +5,7 @@ export * from './device';
 export * from './vehicle';
 
 // User views
-export * from './user'; 
+export * from './user';
+
+// Popup views
+export * from './popup'; 
