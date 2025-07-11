@@ -275,26 +275,7 @@ class ApiService {
     return this.get<Setting>('/api/v1/settings');
   }
 
-  // Force delete methods
-  async forceDeleteAllBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete<{ success: boolean; message: string; deleted_count: number }>('/api/v1/dashboard/force-delete-all-backup');
-  }
 
-  async forceDeleteUsersBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete(API_CONFIG.ENDPOINTS.USERS_FORCE_DELETE_BACKUP);
-  }
-
-  async forceDeleteDevicesBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete(API_CONFIG.ENDPOINTS.DEVICES_FORCE_DELETE_BACKUP);
-  }
-
-  async forceDeleteVehiclesBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete(API_CONFIG.ENDPOINTS.VEHICLES_FORCE_DELETE_BACKUP);
-  }
-
-  async forceDeleteDeviceModelsBackupData(): Promise<{ success: boolean; message: string; deleted_count: number }> {
-    return this.delete(API_CONFIG.ENDPOINTS.DEVICE_MODELS_FORCE_DELETE_BACKUP);
-  }
 
   // Get paginated data
   async getPaginated<T>(

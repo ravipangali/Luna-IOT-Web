@@ -11,13 +11,10 @@ import {
   faFileInvoice,
   faFileInvoiceDollar,
   faWallet,
-  faCommentSms,
-  faTrashCan,
-  faDatabase
+  faCommentSms
 } from '@fortawesome/free-solid-svg-icons';
 import { apiService } from '../../services/apiService';
 import { type DashboardStats, type Setting } from '../../types/models';
-import Swal from 'sweetalert2';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -54,51 +51,6 @@ export const AdminDashboard: React.FC = () => {
     fetchSettings();
   }, []);
 
-  const handleForceDeleteAll = async () => {
-    try {
-      const result = await Swal.fire({
-        title: 'Force Delete All Backup Data?',
-        text: 'This will permanently delete all soft-deleted records from the database. This action cannot be undone!',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete permanently!',
-        cancelButtonText: 'Cancel',
-        input: 'text',
-        inputPlaceholder: 'Type "DELETE" to confirm',
-        inputValidator: (value) => {
-          if (value !== 'DELETE') {
-            return 'You must type "DELETE" to confirm!'
-          }
-        }
-      });
-
-      if (result.isConfirmed) {
-        const response = await apiService.forceDeleteAllBackupData();
-        
-        // Refresh stats after deletion
-        const data = await apiService.getDashboardStats();
-        setStats(data);
-        
-        await Swal.fire({
-          title: 'Success!',
-          text: `${response.deleted_count} records have been permanently deleted.`,
-          icon: 'success',
-          timer: 3000,
-          showConfirmButton: false
-        });
-      }
-    } catch (error) {
-      console.error('Error force deleting backup data:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to delete backup data. Please try again.',
-        icon: 'error'
-      });
-    }
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -110,14 +62,6 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Luna IoT Management System</p>
             </div>
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={handleForceDeleteAll}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                title="Force Delete All Backup Data"
-              >
-                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
-                <span>Force Delete</span>
-              </button>
               <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                 <FontAwesomeIcon icon={faBell} className="w-4 h-4" />
               </button>
@@ -178,17 +122,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Deleted Backup Data</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{loading ? '...' : stats?.deleted_backup_data}</p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-lg">
-                <FontAwesomeIcon icon={faDatabase} className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </div>
+
 
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">

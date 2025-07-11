@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faSearch, faEye, faTrashCan } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faTrash, faSearch, faEye } from '@fortawesome/free-solid-svg-icons';
 import { Table } from '../../components/ui';
 import { deviceModelService } from '../../services/deviceModelService';
 import type { DeviceModel } from '../../types/models';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
-import { apiService } from '../../services/apiService';
 
 export const DeviceModelIndex: React.FC = () => {
   const [deviceModels, setDeviceModels] = useState<DeviceModel[]>([]);
@@ -119,47 +118,6 @@ export const DeviceModelIndex: React.FC = () => {
     }
   };
 
-  const handleForceDeleteDeviceModels = async () => {
-    try {
-      const result = await Swal.fire({
-        title: 'Force Delete Device Model Backup Data?',
-        text: 'This will permanently delete all soft-deleted device models from the database. This action cannot be undone!',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete permanently!',
-        cancelButtonText: 'Cancel',
-        input: 'text',
-        inputPlaceholder: 'Type "DELETE" to confirm',
-        inputValidator: (value) => {
-          if (value !== 'DELETE') {
-            return 'You must type "DELETE" to confirm!'
-          }
-        }
-      });
-
-      if (result.isConfirmed) {
-        const response = await apiService.forceDeleteDeviceModelsBackupData();
-        
-        await Swal.fire({
-          title: 'Success!',
-          text: `${response.deleted_count} device model records have been permanently deleted.`,
-          icon: 'success',
-          timer: 3000,
-          showConfirmButton: false
-        });
-      }
-    } catch (error) {
-      console.error('Error force deleting device model backup data:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to delete device model backup data. Please try again.',
-        icon: 'error'
-      });
-    }
-  };
-
   useEffect(() => {
     loadDeviceModels();
   }, []);
@@ -224,14 +182,6 @@ export const DeviceModelIndex: React.FC = () => {
               <p className="text-sm text-gray-500 mt-1">Manage your GPS device models</p>
             </div>
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={handleForceDeleteDeviceModels}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                title="Force Delete Device Model Backup Data"
-              >
-                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
-                <span>Force Delete Device Models</span>
-              </button>
               <Link
                 to="/admin/device-models/add"
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -289,7 +239,7 @@ export const DeviceModelIndex: React.FC = () => {
             pagination={{
               currentPage,
               totalPages,
-              onPageChange: (_page) => {
+              onPageChange: () => {
                 if (searchQuery) {
                   return;
                 }

@@ -47,18 +47,15 @@ export const API_CONFIG = {
     USERS: '/api/v1/users',
     USER_BY_ID: (id: string) => `/api/v1/users/${id}`,
     USER_IMAGE: (id: string) => `/api/v1/users/${id}/image`,
-    USERS_FORCE_DELETE_BACKUP: '/api/v1/users/force-delete-backup',
 
     // Devices
     DEVICES: '/api/v1/devices',
     DEVICE_BY_ID: (id: string) => `/api/v1/devices/${id}`,
     DEVICE_BY_IMEI: (imei: string) => `/api/v1/devices/imei/${imei}`,
-    DEVICES_FORCE_DELETE_BACKUP: '/api/v1/devices/force-delete-backup',
 
     // Device Models
     DEVICE_MODELS: '/api/v1/device-models',
     DEVICE_MODEL_BY_ID: (id: string) => `/api/v1/device-models/${id}`,
-    DEVICE_MODELS_FORCE_DELETE_BACKUP: '/api/v1/device-models/force-delete-backup',
 
     // Vehicles
     VEHICLES: '/api/v1/vehicles',
@@ -66,7 +63,6 @@ export const API_CONFIG = {
     VEHICLE_BY_REG_NO: (regNo: string) => `/api/v1/vehicles/reg/${regNo}`,
     VEHICLE_USER_ACCESS: (imei: string) => `/api/v1/vehicles/${imei}/access`,
     VEHICLE_ASSIGN_USER: (imei: string) => `/api/v1/vehicles/${imei}/assign`,
-    VEHICLES_FORCE_DELETE_BACKUP: '/api/v1/vehicles/force-delete-backup',
 
     // GPS Data
     GPS: '/api/v1/gps',
@@ -85,7 +81,6 @@ export const API_CONFIG = {
 
     // Dashboard
     DASHBOARD_STATS: '/api/v1/dashboard/stats',
-    DASHBOARD_FORCE_DELETE_BACKUP: '/api/v1/dashboard/force-delete-backup',
 
     // Control
     CONTROL_CUT_OIL: '/api/v1/control/cut-oil',
