@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faPaperPlane, faArrowLeft, faUsers, faCalendar, faUser, faBell } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faPaperPlane, faArrowLeft, faUsers, faCalendar, faUser } from '@fortawesome/free-solid-svg-icons';
 import { notificationService, type Notification, type UserWithFCMToken } from '@/services/notificationService';
-import { ApiError } from '@/services/apiService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
