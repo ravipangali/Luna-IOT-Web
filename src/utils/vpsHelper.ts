@@ -18,6 +18,11 @@ const VPS_PATTERNS = [
  * Detects if the current hostname looks like a VPS
  */
 function isVPSEnvironment(): boolean {
+  // Check if window is available (for SSR compatibility)
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  
   const hostname = window.location.hostname;
   
   // Local development indicators
@@ -30,7 +35,8 @@ function isVPSEnvironment(): boolean {
   }
   
   // Check against VPS patterns
-  return VPS_PATTERNS.some(pattern => pattern.test(hostname));
+  const isVPS = VPS_PATTERNS.some(pattern => pattern.test(hostname));
+  return isVPS;
 }
 
 /**
@@ -42,33 +48,95 @@ export function getBackendConfig(): VPSConfig {
   const envPort = import.meta.env.VITE_API_PORT;
   const envSecure = import.meta.env.VITE_API_SECURE === 'true';
   
-  if (envHost) {
-    return {
+  if (envHost && envHost !== 'undefined' && envHost.trim() !== '') {
+    const config = {
       host: envHost,
       httpPort: envPort || '8080',
       wsPort: envPort || '8080',
       isSecure: envSecure
     };
+    
+    // Additional validation to ensure no undefined values
+    if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
+      // Force fallback values
+      config.host = '84.247.131.246';
+      config.httpPort = '8080';
+      config.wsPort = '8080';
+      config.isSecure = false;
+    }
+    
+    return config;
+  }
+  
+  // Check if window is available (for SSR compatibility)
+  if (typeof window === 'undefined') {
+    const config = {
+      host: '84.247.131.246',
+      httpPort: '8080',
+      wsPort: '8080',
+      isSecure: false
+    };
+    
+    // Additional validation to ensure no undefined values
+    if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
+      // Force fallback values
+      config.host = '84.247.131.246';
+      config.httpPort = '8080';
+      config.wsPort = '8080';
+      config.isSecure = false;
+    }
+    
+    return config;
   }
   
   // Auto-detect based on current location
   if (isVPSEnvironment()) {
     // Use current hostname as backend (assumes frontend and backend on same VPS)
-    return {
-      host: window.location.hostname,
+    const config = {
+      host: window.location.hostname || '84.247.131.246',
       httpPort: '8080',
       wsPort: '8080',
       isSecure: window.location.protocol === 'https:'
     };
+    
+    // Force use of the correct backend IP for now
+    config.host = '84.247.131.246';
+    config.isSecure = false;
+    
+    // Additional validation to ensure no undefined values
+    if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
+      // Force fallback values
+      config.host = '84.247.131.246';
+      config.httpPort = '8080';
+      config.wsPort = '8080';
+      config.isSecure = false;
+    }
+    
+    return config;
   }
   
   // Default to localhost for development
-  return {
+  const config = {
     host: '84.247.131.246',
     httpPort: '8080',
     wsPort: '8080',
     isSecure: false
   };
+  
+  // Always use the correct backend IP
+  config.host = '84.247.131.246';
+  config.isSecure = false;
+  
+  // Additional validation to ensure no undefined values
+  if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
+    // Force fallback values
+    config.host = '84.247.131.246';
+    config.httpPort = '8080';
+    config.wsPort = '8080';
+    config.isSecure = false;
+  }
+  
+  return config;
 }
 
 /**
@@ -76,18 +144,51 @@ export function getBackendConfig(): VPSConfig {
  */
 export function buildAPIUrls() {
   const config = getBackendConfig();
+  
+  // Ensure all config values are defined and valid
+  if (!config.host || !config.httpPort || !config.wsPort || 
+      config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined' ||
+      config.host.trim() === '' || config.httpPort.trim() === '' || config.wsPort.trim() === '') {
+    // Fallback to safe defaults
+    const fallbackConfig = {
+      host: '84.247.131.246',
+      httpPort: '8080',
+      wsPort: '8080',
+      isSecure: false
+    };
+    
+    const protocol = fallbackConfig.isSecure ? 'https' : 'http';
+    const wsProtocol = fallbackConfig.isSecure ? 'wss' : 'ws';
+    
+    return {
+      baseURL: `${protocol}://${fallbackConfig.host}:${fallbackConfig.httpPort}`,
+      wsURL: `${wsProtocol}://${fallbackConfig.host}:${fallbackConfig.wsPort}`,
+      healthURL: `${protocol}://${fallbackConfig.host}:${fallbackConfig.httpPort}/health`
+    };
+  }
+  
   const protocol = config.isSecure ? 'https' : 'http';
   const wsProtocol = config.isSecure ? 'wss' : 'ws';
   
-  return {
+  const urls = {
     baseURL: `${protocol}://${config.host}:${config.httpPort}`,
-    wsURL: `${wsProtocol}://${config.host}:${config.wsPort}/ws`,
+    wsURL: `${wsProtocol}://${config.host}:${config.wsPort}`,
     healthURL: `${protocol}://${config.host}:${config.httpPort}/health`
   };
+  
+  // Final validation to ensure no undefined values in URLs
+  if (urls.baseURL.includes('undefined') || urls.wsURL.includes('undefined') || urls.healthURL.includes('undefined')) {
+    // Use fallback URLs
+    urls.baseURL = 'http://84.247.131.246:8080';
+    urls.wsURL = 'ws://84.247.131.246:8080';
+    urls.healthURL = 'http://84.247.131.246:8080/health';
+  }
+  
+  return urls;
 }
 
 /**
- * Tests backend connectivity
+ * Tests the backend connection
  */
 export async function testBackendConnection(): Promise<{
   success: boolean;
@@ -95,102 +196,70 @@ export async function testBackendConnection(): Promise<{
   config: VPSConfig;
   responseTime?: number;
 }> {
-  const config = getBackendConfig();
   const urls = buildAPIUrls();
   const startTime = Date.now();
   
   try {
-    console.log('🔄 Testing backend connection to:', urls.baseURL);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
     const response = await fetch(urls.healthURL, {
       method: 'GET',
-      signal: controller.signal,
       headers: {
-        'Accept': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000), // 5 second timeout
     });
     
-    clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
     
     if (response.ok) {
-      await response.json(); // Consume response to avoid memory leaks
       return {
         success: true,
-        message: `Connected successfully to ${config.host} (${responseTime}ms)`,
-        config,
+        message: 'Backend connection successful',
+        config: getBackendConfig(),
         responseTime
       };
     } else {
       return {
         success: false,
-        message: `Server responded with ${response.status}: ${response.statusText}`,
-        config
+        message: `Backend responded with status: ${response.status}`,
+        config: getBackendConfig(),
+        responseTime
       };
     }
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    
-    // Provide specific error guidance
-    let message = 'Connection failed';
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      message = `Cannot reach ${config.host}:${config.httpPort}. Please check:\n` +
-                `1. Server is running on VPS\n` +
-                `2. Firewall allows port ${config.httpPort}\n` +
-                `3. VPS IP is correct`;
-    } else if (error instanceof Error) {
-      message = error.message;
-    }
-    
     return {
       success: false,
-      message,
-      config,
+      message: error instanceof Error ? error.message : 'Connection failed',
+      config: getBackendConfig(),
       responseTime
     };
   }
 }
 
 /**
- * Shows current configuration in console
+ * Logs the current configuration for debugging
  */
 export function logConfiguration() {
-  const config = getBackendConfig();
-  const urls = buildAPIUrls();
-  const isVPS = isVPSEnvironment();
-  
-  console.group('🌐 Luna IoT Frontend Configuration');
-  console.log('Environment:', isVPS ? 'VPS/Production' : 'Local Development');
-  console.log('Backend Config:', config);
-  console.log('API URLs:', urls);
-  console.log('Current Location:', {
-    hostname: window.location.hostname,
-    protocol: window.location.protocol,
-    port: window.location.port
-  });
-  console.groupEnd();
-  
-  return { config, urls, isVPS };
+  // This function is intentionally empty to remove debug logging
 }
 
 /**
- * Creates environment configuration for copy-paste
+ * Generates environment configuration for deployment
  */
 export function generateEnvConfig(vpsIP?: string): string {
-  const host = vpsIP || window.location.hostname;
-  
-  return `# Luna IoT Frontend Configuration
-# Add this to your .env.local file
+  const ip = vpsIP || '84.247.131.246';
+  return `# Luna IoT Frontend Environment Configuration
+# Copy this to your .env file
 
-VITE_API_HOST=${host}
+# API Configuration
+VITE_API_HOST=${ip}
 VITE_API_PORT=8080
 VITE_API_SECURE=false
-VITE_API_BASE_URL=http://${host}:8080
-VITE_WS_URL=ws://${host}:8080/ws
-VITE_APP_NAME=Luna IoT Tracking System`;
+
+# Development Configuration
+VITE_DEV_MODE=true
+VITE_DEBUG_MODE=false
+`;
 }
 
 // Auto-run configuration logging in development

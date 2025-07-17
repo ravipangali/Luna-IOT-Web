@@ -5,12 +5,17 @@ export interface ControlResponse {
   success: boolean;
   message?: string;
   error?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface ControlRequest {
   imei?: string;
   device_id?: number;
+}
+
+interface ApiResponse {
+  message?: string;
+  data?: unknown;
 }
 
 class ControlService {
@@ -19,7 +24,7 @@ class ControlService {
     try {
       const response = await apiService.post(API_CONFIG.ENDPOINTS.CONTROL_CUT_OIL, {
         imei
-      }) as any;
+      }) as ApiResponse;
       return {
         success: true,
         message: response.message || 'Oil cut command sent successfully',
@@ -39,7 +44,7 @@ class ControlService {
     try {
       const response = await apiService.post(API_CONFIG.ENDPOINTS.CONTROL_CONNECT_OIL, {
         imei
-      }) as any;
+      }) as ApiResponse;
       return {
         success: true,
         message: response.message || 'Oil connect command sent successfully',
@@ -59,7 +64,7 @@ class ControlService {
     try {
       const response = await apiService.post(API_CONFIG.ENDPOINTS.CONTROL_GET_LOCATION, {
         imei
-      }) as any;
+      }) as ApiResponse;
       return {
         success: true,
         message: response.message || 'Location request sent successfully',
@@ -77,7 +82,7 @@ class ControlService {
   // Get active devices
   async getActiveDevices(): Promise<ControlResponse> {
     try {
-      const response = await apiService.get(API_CONFIG.ENDPOINTS.CONTROL_ACTIVE_DEVICES) as any;
+      const response = await apiService.get(API_CONFIG.ENDPOINTS.CONTROL_ACTIVE_DEVICES) as ApiResponse;
       return {
         success: true,
         message: 'Active devices retrieved successfully',

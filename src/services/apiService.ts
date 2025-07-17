@@ -16,7 +16,7 @@ export class ApiError extends Error {
 
 // API Service class
 class ApiService {
-  private baseURL: string;
+  private baseURL: string | null = null;
   private defaultHeaders: Record<string, string>;
   private timeout: number;
   private isRefreshing: boolean = false;
@@ -26,18 +26,68 @@ class ApiService {
   }> = [];
 
   constructor() {
-    // Use VPS helper for automatic configuration
-    const urls = buildAPIUrls();
-    this.baseURL = urls.baseURL;
     this.defaultHeaders = API_CONFIG.DEFAULT_HEADERS;
     this.timeout = API_CONFIG.TIMEOUT;
     
-    console.log('🔧 API Service initialized with base URL:', this.baseURL);
+    // Initialize baseURL lazily
+    this.initializeBaseURL();
+  }
+
+  private initializeBaseURL() {
+    try {
+      // Use VPS helper for automatic configuration
+      const urls = buildAPIUrls();
+      console.log('🔧 ApiService constructor - urls object:', urls);
+      console.log('🔧 ApiService constructor - urls.baseURL:', urls.baseURL);
+      console.log('🔧 ApiService constructor - urls.baseURL type:', typeof urls.baseURL);
+      
+      // Validate baseURL before setting it
+      if (!urls.baseURL || urls.baseURL.includes('undefined')) {
+        throw new Error('Invalid baseURL detected: ' + urls.baseURL);
+      }
+      
+      this.baseURL = urls.baseURL;
+      
+      console.log('🔧 API Service initialized with base URL:', this.baseURL);
+      console.log('🔧 API Service URLs object:', urls);
+      console.log('🔧 API Service this.baseURL type:', typeof this.baseURL);
+      console.log('🔧 API Service this.baseURL length:', this.baseURL?.length);
+    } catch (error) {
+      console.error('🔧 ERROR: Failed to initialize baseURL:', error);
+      // Fallback to default
+      this.baseURL = 'http://84.247.131.246:8080';
+      console.log('🔧 API Service using fallback base URL:', this.baseURL);
+    }
+    
+    // Final validation to ensure baseURL is always valid
+    if (!this.baseURL || this.baseURL.includes('undefined')) {
+      console.error('🔧 CRITICAL ERROR: baseURL is still invalid after initialization:', this.baseURL);
+      this.baseURL = 'http://84.247.131.246:8080';
+      console.log('🔧 API Service forced to fallback base URL:', this.baseURL);
+    }
+    
+    // Force the correct baseURL for now
+    this.baseURL = 'http://84.247.131.246:8080';
+    console.log('🔧 API Service final baseURL:', this.baseURL);
+    
+    // Validate the baseURL is correct
+    if (this.baseURL !== 'http://84.247.131.246:8080') {
+      console.error('🔧 CRITICAL ERROR: baseURL is not correct:', this.baseURL);
+      this.baseURL = 'http://84.247.131.246:8080';
+    }
   }
 
   // Get auth headers from authService
   private getAuthHeaders(): Record<string, string> {
     return authService.getAuthHeaders();
+  }
+
+  // Get base URL for debugging
+  public getBaseURL(): string {
+    if (!this.baseURL) {
+      this.initializeBaseURL();
+    }
+    return this.baseURL || 'http://84.247.131.246:8080';
   }
 
   // Handle response with proper error handling
@@ -98,9 +148,17 @@ class ApiService {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
+      console.log('🔧 fetchWithAuth - Making request to:', url);
+      console.log('🔧 fetchWithAuth - Request options:', {
+        method: options.method,
+        headers: options.headers,
+        body: options.body
+      });
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
+        redirect: 'manual', // Prevent automatic redirects
         headers: {
           ...this.defaultHeaders,
           ...this.getAuthHeaders(),
@@ -109,6 +167,21 @@ class ApiService {
       });
 
       clearTimeout(timeoutId);
+
+      console.log('🔧 fetchWithAuth - Response status:', response.status);
+      console.log('🔧 fetchWithAuth - Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('🔧 fetchWithAuth - Response URL:', response.url);
+
+      // Check if we were redirected
+      if (response.url !== url) {
+        console.warn('🔧 fetchWithAuth - Request was redirected from:', url, 'to:', response.url);
+      }
+      
+      // Check if response is from Google
+      if (response.url.includes('google.com') || response.url.includes('googleapis.com')) {
+        console.error('🔧 CRITICAL ERROR: Response is from Google:', response.url);
+        throw new Error('Request was redirected to Google');
+      }
 
       // Handle 401 errors with token refresh
       if (response.status === 401) {
@@ -134,6 +207,7 @@ class ApiService {
             const retryResponse = await fetch(url, {
               ...options,
               signal: controller.signal,
+              redirect: 'manual', // Prevent automatic redirects
               headers: {
                 ...this.defaultHeaders,
                 ...this.getAuthHeaders(),
@@ -172,16 +246,13 @@ class ApiService {
       return await this.handleResponse<T>(response);
     } catch (error) {
       clearTimeout(timeoutId);
-
+      
       if (error instanceof ApiError) {
         throw error;
       }
       
-      if (error instanceof Error) {
-        throw new ApiError(0, error.message);
-      }
-      
-      throw new ApiError(0, 'Unknown error occurred');
+      console.error('🔧 fetchWithAuth - Network error:', error);
+      throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -231,15 +302,96 @@ class ApiService {
     }
   }
 
+  // Validate URL construction
+  private validateURL(url: string): void {
+    if (url.includes('undefined')) {
+      console.error('🔧 CRITICAL ERROR: URL contains undefined:', url);
+      throw new Error('URL contains undefined values');
+    }
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      console.error('🔧 CRITICAL ERROR: URL is malformed:', url);
+      throw new Error('URL is malformed');
+    }
+  }
+
   // GET request
   async get<T>(endpoint: string): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    if (!this.baseURL) {
+      console.log('🔧 baseURL is null, reinitializing...');
+      this.initializeBaseURL();
+    }
+    
+    if (!this.baseURL) {
+      console.error('🔧 ERROR: baseURL is still undefined after reinitialization!');
+      throw new Error('API base URL is not configured');
+    }
+    
+    // Validate baseURL doesn't contain undefined
+    if (this.baseURL.includes('undefined')) {
+      console.error('🔧 ERROR: baseURL contains undefined:', this.baseURL);
+      this.initializeBaseURL(); // Try to reinitialize
+      if (this.baseURL.includes('undefined')) {
+        throw new Error('API base URL is malformed');
+      }
+    }
+    
+    // Ensure endpoint doesn't start with a slash if baseURL ends with one
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${this.baseURL}/${cleanEndpoint}`;
+    
+    console.log('🔧 GET request URL:', url);
+    this.validateURL(url);
     return this.withRetry(() => this.fetchWithAuth<T>(url, { method: 'GET' }));
   }
 
   // POST request
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    if (!this.baseURL) {
+      console.log('🔧 baseURL is null, reinitializing...');
+      this.initializeBaseURL();
+    }
+    
+    if (!this.baseURL) {
+      console.error('🔧 ERROR: baseURL is still undefined after reinitialization!');
+      throw new Error('API base URL is not configured');
+    }
+    
+    // Validate baseURL doesn't contain undefined
+    if (this.baseURL.includes('undefined')) {
+      console.error('🔧 ERROR: baseURL contains undefined:', this.baseURL);
+      this.initializeBaseURL(); // Try to reinitialize
+      if (this.baseURL.includes('undefined')) {
+        throw new Error('API base URL is malformed');
+      }
+    }
+    
+    // Ensure endpoint doesn't start with a slash if baseURL ends with one
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${this.baseURL}/${cleanEndpoint}`;
+    
+    console.log('🔧 POST request URL:', url);
+    console.log('🔧 POST request baseURL:', this.baseURL);
+    console.log('🔧 POST request endpoint:', endpoint);
+    console.log('🔧 POST request cleanEndpoint:', cleanEndpoint);
+    
+    // Check if URL contains any suspicious domains
+    if (url.includes('google') || url.includes('batch')) {
+      console.error('🔧 CRITICAL ERROR: URL contains suspicious domain:', url);
+      throw new Error('URL contains suspicious domain');
+    }
+    
+    // Log the full request details
+    console.log('🔧 POST request full details:', {
+      url,
+      baseURL: this.baseURL,
+      endpoint,
+      cleanEndpoint,
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+    
+    this.validateURL(url);
     
     return this.withRetry(() =>
       this.fetchWithAuth<T>(url, {
@@ -251,7 +403,12 @@ class ApiService {
 
   // PUT request
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Ensure endpoint doesn't start with a slash if baseURL ends with one
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${this.baseURL}/${cleanEndpoint}`;
+    
+    console.log('🔧 PUT request URL:', url);
+    this.validateURL(url);
     return this.withRetry(() =>
       this.fetchWithAuth<T>(url, {
         method: 'PUT',
@@ -262,7 +419,12 @@ class ApiService {
 
   // DELETE request
   async delete<T>(endpoint: string): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Ensure endpoint doesn't start with a slash if baseURL ends with one
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${this.baseURL}/${cleanEndpoint}`;
+    
+    console.log('🔧 DELETE request URL:', url);
+    this.validateURL(url);
     return this.withRetry(() => this.fetchWithAuth<T>(url, { method: 'DELETE' }));
   }
 

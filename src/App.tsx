@@ -22,6 +22,7 @@ import PopupIndex from "./views/popup";
 import CreatePopup from "./views/popup/CreatePopup";
 import EditPopup from "./views/popup/EditPopup";
 import ShowPopup from "./views/popup/ShowPopup";
+import { NotificationList, CreateNotification, EditNotification, ShowNotification } from "./views/notification";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           draggable
           pauseOnHover
         />
+        
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -88,6 +90,12 @@ function App() {
             <Route path="popups/create" element={<CreatePopup />} />
             <Route path="popups/:id" element={<ShowPopup />} />
             <Route path="popups/edit/:id" element={<EditPopup />} />
+
+            {/* Notification Routes */}
+            <Route path="notifications" element={<NotificationList />} />
+            <Route path="notifications/create" element={<CreateNotification />} />
+            <Route path="notifications/:id" element={<ShowNotification />} />
+            <Route path="notifications/edit/:id" element={<EditNotification />} />
 
             {/* Settings Routes */}
             <Route path="settings" element={

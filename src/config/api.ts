@@ -1,30 +1,13 @@
 // API Configuration for Luna IoT Frontend
 // This will automatically detect if running in development or production
 
+import { ENV_CONFIG } from './environment';
+
 const isDevelopment = import.meta.env.DEV;
-const isProduction = import.meta.env.PROD;
 
-// VPS/Production configuration
-const VPS_CONFIG = {
-  // Replace these with your actual VPS details
-  HOST: '84.247.131.246',  // e.g., '203.161.xxx.xxx' or 'your-domain.com'
-  HTTP_PORT: '8080',
-  WS_PORT: '8080'  // WebSocket uses same port as HTTP server
-};
-
-// Development configuration
-const DEV_CONFIG = {
-  HOST: '84.247.131.246',
-  HTTP_PORT: '8080',
-  WS_PORT: '8080'
-};
-
-// Auto-select configuration based on environment
-const config = isProduction ? VPS_CONFIG : DEV_CONFIG;
-
-// Build API URLs
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || `http://${config.HOST}:${config.HTTP_PORT}`;
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || `ws://${config.HOST}:${config.WS_PORT}/ws`;
+// Build API URLs using environment configuration
+const API_BASE_URL = ENV_CONFIG.API_BASE_URL;
+const WS_BASE_URL = ENV_CONFIG.WS_BASE_URL;
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
@@ -116,7 +99,7 @@ console.log('🌐 API Configuration:', {
   environment: isDevelopment ? 'development' : 'production',
   baseUrl: API_BASE_URL,
   wsUrl: WS_BASE_URL,
-  config: config
+  envConfig: ENV_CONFIG
 });
 
 // Export individual values for convenience

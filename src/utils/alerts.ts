@@ -75,9 +75,7 @@ export const showInfo = (
 // Confirmation dialog
 export const showConfirmation = (
   title: string,
-  message?: string,
-  _confirmText: string = 'Yes',
-  _cancelText: string = 'Cancel'
+  message?: string
 ): Promise<boolean> => {
   const fullMessage = message ? `${title}\n\n${message}` : title;
   return Promise.resolve(confirm(fullMessage));

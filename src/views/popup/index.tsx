@@ -67,7 +67,6 @@ const PopupIndex: React.FC = () => {
 
   const handleSearch = () => {
     // Implement search functionality if needed
-    console.log('Search:', searchQuery);
   };
 
   const filteredPopups = popupsResponse?.data?.filter((popup: Popup) => 

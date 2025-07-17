@@ -91,14 +91,8 @@ export const VehicleReportNew: React.FC = () => {
 
     try {
       setLoading(true);
-      console.log('🔍 Generating report for:', {
-        imei: selectedVehicle,
-        fromDate,
-        toDate
-      });
       
       const response = await gpsController.getGPSDataByIMEI(selectedVehicle, 1, 10000);
-      console.log('📡 API Response:', response);
 
       // Check if the response structure is correct
       if (response && (response.success === true || Array.isArray(response.data))) {
@@ -110,14 +104,11 @@ export const VehicleReportNew: React.FC = () => {
         } else if (Array.isArray(response)) {
           allData = response as GPSData[];
         } else {
-          console.error('❌ Unexpected response structure:', response);
           throw new Error('Invalid API response structure');
         }
 
-        console.log('📊 Total GPS data points:', allData.length);
         
         const filteredData = filterDataByDateRange(allData, fromDate, toDate);
-        console.log('📊 Filtered GPS data points:', filteredData.length);
         
         setReportData(filteredData);
         
@@ -130,14 +121,12 @@ export const VehicleReportNew: React.FC = () => {
           showToast('No data found for the selected date range', 'warning');
         }
       } else {
-        console.error('❌ API Error Response:', response);
         // Handle error responses that may have different structures
         const errorResponse = response as { error?: string; message?: string };
         const errorMsg = errorResponse?.error || errorResponse?.message || 'Unknown error occurred';
         showToast(`Failed to generate report: ${errorMsg}`, 'error');
       }
     } catch (error) {
-      console.error('💥 Report generation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showToast(`Failed to generate report: ${errorMessage}`, 'error');
       handleApiError(error, 'Failed to generate report');

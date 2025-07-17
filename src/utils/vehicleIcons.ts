@@ -109,18 +109,18 @@ export const getVehicleIconPath = (
       // Use live folder for live mode and historical mode (shows vehicle movement)
       const liveFolderName = getLiveFolderName(mappedType);
       imagePath = new URL(`../assets/Icon/${folderName}/${liveFolderName}/live_${mappedType}_${statusFile}.png`, import.meta.url).href;
-      console.log(`📸 Loading ${isHistoricalMode ? 'HISTORICAL' : 'LIVE'} PNG icon: ${folderName}/${liveFolderName}/live_${mappedType}_${statusFile}.png`);
+      // Loading PNG icon
     } else {
       // Use status folder for status panels and static displays
       const statusFolderName = getStatusFolderName(mappedType);
       imagePath = new URL(`../assets/Icon/${folderName}/${statusFolderName}/${mappedType}_${statusFile}.png`, import.meta.url).href;
-      console.log(`📋 Loading STATUS PNG icon: ${folderName}/${statusFolderName}/${mappedType}_${statusFile}.png`);
+              // Loading STATUS PNG icon
     }
     
     return imagePath;
     
-  } catch (error) {
-    console.warn(`❌ Failed to load ${mode.toUpperCase()} PNG icon for ${vehicleType}/${status}, trying fallbacks`, error);
+      } catch {
+      // Failed to load PNG icon, trying fallbacks
     
     // Try enhanced fallback logic with better status matching
     return getIconWithFallback(mappedType, status, mode, isHistoricalMode);
@@ -146,11 +146,11 @@ const getIconWithFallback = (
       if (mode === 'live' || isHistoricalMode) {
         const liveFolderName = getLiveFolderName(mappedType);
         fallbackPath = new URL(`../assets/Icon/${folderName}/${liveFolderName}/live_${mappedType}_${fallbackStatus}.png`, import.meta.url).href;
-        console.log(`🔄 Using ${isHistoricalMode ? 'HISTORICAL' : 'LIVE'} fallback: live_${mappedType}_${fallbackStatus}.png`);
+        // Using fallback icon
       } else {
         const statusFolderName = getStatusFolderName(mappedType);
         fallbackPath = new URL(`../assets/Icon/${folderName}/${statusFolderName}/${mappedType}_${fallbackStatus}.png`, import.meta.url).href;
-        console.log(`🔄 Using STATUS fallback: ${mappedType}_${fallbackStatus}.png`);
+                  // Using STATUS fallback
       }
       
       return fallbackPath;
@@ -163,16 +163,16 @@ const getIconWithFallback = (
   try {
     if (mode === 'live' || isHistoricalMode) {
       const carFallback = new URL('../assets/Icon/Car/Live/live_car_idle.png', import.meta.url).href;
-      console.log(`🚗 Using ${isHistoricalMode ? 'HISTORICAL' : 'LIVE'} car fallback icon`);
+              // Using car fallback icon
       return carFallback;
     } else {
       const carFallback = new URL('../assets/Icon/Car/Status/car_idle.png', import.meta.url).href;
-      console.log(`🚗 Using STATUS car fallback icon`);
+              // Using STATUS car fallback icon
       return carFallback;
     }
   } catch {
     // Ultimate SVG fallback
-    console.warn(`⚠️ All PNG icons failed, using SVG fallback for ${isHistoricalMode ? 'historical' : mode} mode`);
+          // All PNG icons failed, using SVG fallback
     const statusColors: Record<VehicleStatus, string> = {
       'running': '#10B981',   // Green
       'idle': '#F59E0B',      // Orange  
@@ -205,11 +205,11 @@ export const getLiveIconPath = (
       
       // First try with 'running' icon
       const runningPath = new URL(`../assets/Icon/${folderName}/${liveFolderName}/live_${mappedType}_running.png`, import.meta.url).href;
-      console.log(`🟢 Using running icon for high-speed vehicle: ${runningPath}`);
+              // Using running icon for high-speed vehicle
       return runningPath;
     } catch {
       // If running icon doesn't exist, fall back to idle icon with green indicator
-      console.log(`⚠️ No running icon found for ${vehicleType}, using idle icon instead`);
+              // No running icon found, using idle icon instead
       return getVehicleIconPath(vehicleType, 'idle', 'live', false);
     }
   }

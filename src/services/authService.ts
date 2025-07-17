@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../config/api';
+import { apiService } from './apiService';
 
 export interface User {
   id: number;
@@ -33,21 +34,20 @@ export interface RegisterData {
 }
 
 class AuthService {
-  private readonly apiUrl = API_CONFIG.BASE_URL;
   private readonly tokenKey = 'luna_auth_token';
   private readonly userKey = 'luna_auth_user';
 
-  // Get stored token from sessionStorage
+  // Get token from sessionStorage
   getToken(): string | null {
     return sessionStorage.getItem(this.tokenKey);
   }
 
-  // Get stored user from sessionStorage
+  // Get user from sessionStorage
   getUser(): User | null {
-    const userStr = sessionStorage.getItem(this.userKey);
-    if (userStr) {
+    const userData = sessionStorage.getItem(this.userKey);
+    if (userData) {
       try {
-        return JSON.parse(userStr);
+        return JSON.parse(userData);
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         this.clearAuth();
@@ -91,15 +91,7 @@ class AuthService {
   // Login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.apiUrl}${API_CONFIG.ENDPOINTS.AUTH_LOGIN}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const data: AuthResponse = await response.json();
+      const data: AuthResponse = await apiService.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH_LOGIN, credentials);
 
       if (data.success && data.token && data.user) {
         this.setAuth(data.token, data.user);
@@ -125,15 +117,7 @@ class AuthService {
         role: 1
       };
 
-      const response = await fetch(`${this.apiUrl}${API_CONFIG.ENDPOINTS.AUTH_REGISTER}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      const data: AuthResponse = await response.json();
+      const data: AuthResponse = await apiService.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH_REGISTER, requestData);
 
       if (data.success && data.token && data.user) {
         this.setAuth(data.token, data.user);
@@ -153,13 +137,7 @@ class AuthService {
   // Logout
   async logout(): Promise<void> {
     try {
-      await fetch(`${this.apiUrl}${API_CONFIG.ENDPOINTS.AUTH_LOGOUT}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
-        },
-      });
+      await apiService.post(API_CONFIG.ENDPOINTS.AUTH_LOGOUT, {});
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -170,14 +148,7 @@ class AuthService {
   // Get current user info from server
   async me(): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.apiUrl}${API_CONFIG.ENDPOINTS.AUTH_ME}`, {
-        method: 'GET',
-        headers: {
-          ...this.getAuthHeaders(),
-        },
-      });
-
-      const data: AuthResponse = await response.json();
+      const data: AuthResponse = await apiService.get<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH_ME);
 
       if (data.success && data.user) {
         // Update stored user data
@@ -205,15 +176,7 @@ class AuthService {
   // Refresh token
   async refreshToken(): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.apiUrl}${API_CONFIG.ENDPOINTS.AUTH_REFRESH}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.getAuthHeaders(),
-        },
-      });
-
-      const data: AuthResponse = await response.json();
+      const data: AuthResponse = await apiService.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH_REFRESH, {});
 
       if (data.success && data.token && data.user) {
         this.setAuth(data.token, data.user);
