@@ -26,11 +26,7 @@ function isVPSEnvironment(): boolean {
   const hostname = window.location.hostname;
   
   // Local development indicators
-  if (hostname === 'localhost' || 
-      hostname === '127.0.0.1' || 
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('172.')) {
+  if (hostname === '84.247.131.246') {
     return false;
   }
   

@@ -54,7 +54,7 @@ class ApiService {
       console.log('🔧 API Service this.baseURL length:', this.baseURL?.length);
     } catch (error) {
       console.error('🔧 ERROR: Failed to initialize baseURL:', error);
-      // Fallback to default
+      // Fallback to HTTP
       this.baseURL = 'http://84.247.131.246:8080';
       console.log('🔧 API Service using fallback base URL:', this.baseURL);
     }
@@ -63,18 +63,10 @@ class ApiService {
     if (!this.baseURL || this.baseURL.includes('undefined')) {
       console.error('🔧 CRITICAL ERROR: baseURL is still invalid after initialization:', this.baseURL);
       this.baseURL = 'http://84.247.131.246:8080';
-      console.log('🔧 API Service forced to fallback base URL:', this.baseURL);
+      console.log(' API Service forced to fallback base URL:', this.baseURL);
     }
     
-    // Force the correct baseURL for now
-    this.baseURL = 'http://84.247.131.246:8080';
     console.log('🔧 API Service final baseURL:', this.baseURL);
-    
-    // Validate the baseURL is correct
-    if (this.baseURL !== 'http://84.247.131.246:8080') {
-      console.error('🔧 CRITICAL ERROR: baseURL is not correct:', this.baseURL);
-      this.baseURL = 'http://84.247.131.246:8080';
-    }
   }
 
   // Get auth headers from authService

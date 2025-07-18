@@ -3,7 +3,7 @@ export const ENV_CONFIG = {
   // API Configuration
   API_HOST: import.meta.env.VITE_API_HOST || '84.247.131.246',
   API_PORT: import.meta.env.VITE_API_PORT || '8080',
-  API_SECURE: import.meta.env.VITE_API_SECURE === 'true' || false,
+  API_SECURE: false, // Always use HTTP
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'Luna IoT Tracking System',
@@ -14,19 +14,28 @@ export const ENV_CONFIG = {
   
   // Build URLs
   get API_BASE_URL() {
-    const protocol = this.API_SECURE ? 'https' : 'http';
-    return `${protocol}://${this.API_HOST}:${this.API_PORT}`;
+    return `http://${this.API_HOST}:${this.API_PORT}`;
   },
   
   get WS_BASE_URL() {
-    const protocol = this.API_SECURE ? 'wss' : 'ws';
-    return `${protocol}://${this.API_HOST}:${this.API_PORT}/ws`;
+    return `ws://${this.API_HOST}:${this.API_PORT}/ws`;
   },
   
   get HEALTH_URL() {
     return `${this.API_BASE_URL}/health`;
   }
 };
+
+// Debug environment variables
+console.log('🔧 Environment Debug:', {
+  VITE_API_HOST: import.meta.env.VITE_API_HOST,
+  VITE_API_PORT: import.meta.env.VITE_API_PORT,
+  VITE_API_SECURE: import.meta.env.VITE_API_SECURE,
+  API_BASE_URL: ENV_CONFIG.API_BASE_URL,
+  API_SECURE: ENV_CONFIG.API_SECURE,
+  API_HOST: ENV_CONFIG.API_HOST,
+  API_PORT: ENV_CONFIG.API_PORT
+});
 
 // Validate configuration
 export function validateEnvironment() {
@@ -57,4 +66,4 @@ export function validateEnvironment() {
 // Auto-validate in development
 if (import.meta.env.DEV) {
   validateEnvironment();
-} 
+}

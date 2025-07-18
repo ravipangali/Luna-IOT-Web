@@ -1,11 +1,13 @@
 import { apiService } from './apiService';
 import { APP_CONFIG } from '../config/app_config';
+import { ENV_CONFIG } from '../config/environment';
 
 export interface CreateNotificationRequest {
   title: string;
   body: string;
   type?: string;
   image_url?: string;
+  image_data?: string; // Add image_data field for uploaded files
   sound?: string;
   priority?: string;
   data?: Record<string, unknown>;
@@ -18,6 +20,7 @@ export interface UpdateNotificationRequest {
   body: string;
   type?: string;
   image_url?: string;
+  image_data?: string; // Add image_data field for uploaded files
   sound?: string;
   priority?: string;
   data?: Record<string, unknown>;
@@ -32,6 +35,7 @@ export interface Notification {
   type: string;
   priority: string;
   image_url?: string;
+  image_data?: string; // Add image_data field for uploaded files
   sound?: string;
   is_sent: boolean;
   sent_at?: string;
@@ -194,13 +198,21 @@ class NotificationService {
     priority?: 'high' | 'normal';
   }): Promise<SendNotificationToDeviceResponse> {
     const endpoint = `https://ravipangali.com.np/user/api/firebase/apps/${APP_CONFIG.RP_FIREBASE_APP_ID}/notifications/`;
+    
+    // Process image_url to include backend base URL if it's a relative path
+    let processedImageUrl = image_url;
+    if (image_url && !image_url.startsWith('http') && !image_url.startsWith('https')) {
+      // If it's a relative path, prepend the backend base URL
+      processedImageUrl = `${ENV_CONFIG.API_BASE_URL}${image_url.startsWith('/') ? '' : '/'}${image_url}`;
+    }
+    
     const payload = {
       email: APP_CONFIG.RP_ACCOUNT_EMAIL,
       password: APP_CONFIG.RP_ACCOUNT_PASSWORD,
       title,
       body,
       tokens,
-      image_url,
+      image_url: processedImageUrl,
       data,
       priority,
     };

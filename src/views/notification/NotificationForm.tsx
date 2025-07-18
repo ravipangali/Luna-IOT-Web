@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -7,13 +7,13 @@ import {
   faPaperPlane, 
   faSearch, 
   faTimes, 
-  faUsers,
-  faUpload,
-  faTrash
+  faUsers
 } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 import { notificationService, type UpdateNotificationRequest, type CreateNotificationRequest } from '../../services/notificationService';
 import { userSearchService, type User } from '../../services/userSearchService';
+import { uploadService } from '../../services/uploadService';
+import { debugAuthState } from '../../utils/authDebug';
 import type { ApiError } from '../../services/apiService';
 
 
@@ -35,16 +35,19 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
   const [body, setBody] = useState('');
   const [type, setType] = useState('system_notification');
   const [priority, setPriority] = useState('normal');
-  const [imageUrl, setImageUrl] = useState('');
   const [sound, setSound] = useState('default');
-  const [sendImmediately, setSendImmediately] = useState(true); // Default to true
+  const [sendImmediately, setSendImmediately] = useState(true);
+  
+  // Image handling - NEW FLOW
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageData, setImageData] = useState(''); // For existing images when editing
+  const [isUploading, setIsUploading] = useState(false);
 
-  // User selection
+  // User selection - NEW FLOW
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-
-
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   // Load notification data if editing
   const { data: notification, isLoading: isLoadingNotification } = useQuery({
@@ -53,12 +56,35 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
     enabled: isEdit && !!actualNotificationId,
   });
 
-  // Load all users for selection
-  const { data: allUsers } = useQuery({
-    queryKey: ['all-users'],
-    queryFn: () => userSearchService.getAllUsers(),
-    enabled: true,
-  });
+  // Load all users once when component mounts
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const response = await userSearchService.getAllUsers();
+        if (response.success && response.data) {
+          setAllUsers(response.data);
+        } else {
+          toast.error('Failed to load users');
+        }
+      } catch (error) {
+        toast.error('Failed to load users');
+        console.error('Error loading users:', error);
+      }
+    };
+
+    fetchAllUsers();
+  }, []);
+
+  // Filter users locally based on search query
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    return allUsers.filter(user => 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [allUsers, searchQuery]);
 
   // Load notification data when editing
   useEffect(() => {
@@ -68,7 +94,7 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
       setBody(data.body || '');
       setType(data.type || 'system_notification');
       setPriority(data.priority || 'normal');
-      setImageUrl(data.image_url || '');
+      setImageData(data.image_data || ''); // Load existing image
       setSound(data.sound || 'default');
       // Convert notification users to User type
       if (data.users && Array.isArray(data.users)) {
@@ -90,73 +116,56 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
     }
   }, [isEdit, notification]);
 
-  // Search users
-  const searchUsers = async (query: string) => {
-    if (query.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      const response = await userSearchService.searchUsers(query);
-      
-      if (response.success) {
-        setSearchResults(response.data);
-      } else {
-        setSearchResults([]);
-        toast.error('Failed to search users. Please try again.');
+  // Handle image selection (preview only, no upload)
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please select a valid image file (JPEG, PNG, or GIF)');
+        return;
       }
-    } catch {
-      setSearchResults([]);
-      toast.error('Failed to search users. Please try again.');
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+        setSelectedImage(file);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // Handle search input change with debouncing
-  const handleSearchInputChange = (query: string) => {
-    setSearchQuery(query);
-    
-    // Clear results if query is empty
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    // Search after a short delay to avoid too many API calls
-    const timeoutId = setTimeout(() => {
-      searchUsers(query);
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
+  // Remove selected image
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview('');
+    setImageData('');
   };
 
   // Add user to selection
   const addUser = (user: User) => {
-    if (!selectedUsers) {
-      setSelectedUsers([user]);
-      return;
-    }
-    
     if (!selectedUsers.find(u => u.id === user.id)) {
       setSelectedUsers([...selectedUsers, user]);
     }
     setSearchQuery('');
-    setSearchResults([]);
   };
 
   // Remove user from selection
   const removeUser = (userId: number) => {
-    if (!selectedUsers) {
-      return;
-    }
     setSelectedUsers(selectedUsers.filter(u => u.id !== userId));
   };
 
   // Select all users
   const selectAllUsers = () => {
-    if (allUsers?.success && allUsers.data && Array.isArray(allUsers.data)) {
-      setSelectedUsers(allUsers.data);
-    }
+    setSelectedUsers([...allUsers]);
   };
 
   // Clear all selected users
@@ -164,35 +173,24 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
     setSelectedUsers([]);
   };
 
-  // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
-        return;
+  // Upload image mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const response = await uploadService.uploadNotificationImage(file);
+      if (response.success) {
+        return response.file_url || '';
+      } else {
+        throw new Error(response.message);
       }
-      
-      // Validate file type
-      if (!file.type.match('image/(jpeg|jpg|png|gif)')) {
-        toast.error('Only JPEG, PNG and GIF images are allowed');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setImageUrl(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Remove image
-  const handleRemoveImage = () => {
-    setImageUrl('');
-  };
+    },
+    onSuccess: (fileUrl: string) => {
+      setImageData(fileUrl);
+      toast.success('Image uploaded successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to upload image');
+    },
+  });
 
   // Create notification mutation
   const createMutation = useMutation({
@@ -232,7 +230,7 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
     },
   });
 
-  // Handle form submission
+  // Handle form submission - NEW SEQUENCE: Image first, then notification
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -247,28 +245,44 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
       return;
     }
 
-    // Prepare form data
-    const formData: UpdateNotificationRequest = {
-      title: title.trim(),
-      body: body.trim(),
-      type,
-      priority,
-      image_url: imageUrl.trim(),
-      sound: sound.trim(),
-      user_ids: selectedUsers.map(u => u.id),
-      send_immediately: sendImmediately,
-    };
+    try {
+      let finalImageUrl = imageData; // Use existing image if editing
 
-    // Create or update notification in database
-    // The backend will handle sending notifications if send_immediately is true
-    if (isEdit && actualNotificationId) {
-      updateMutation.mutate({ id: actualNotificationId, data: formData });
-    } else {
-      createMutation.mutate(formData);
+      // If there's a new image selected, upload it first
+      if (selectedImage) {
+        setIsUploading(true);
+        const uploadedImageUrl = await uploadImageMutation.mutateAsync(selectedImage);
+        finalImageUrl = uploadedImageUrl;
+        setIsUploading(false);
+      }
+
+      // Prepare form data
+      const formData: UpdateNotificationRequest = {
+        title: title.trim(),
+        body: body.trim(),
+        type,
+        priority,
+        image_url: finalImageUrl,
+        image_data: finalImageUrl,
+        sound: sound.trim(),
+        user_ids: selectedUsers.map(u => u.id),
+        send_immediately: sendImmediately,
+      };
+
+      // Create or update notification
+      if (isEdit && actualNotificationId) {
+        await updateMutation.mutateAsync({ id: actualNotificationId, data: formData });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+
+    } catch (error) {
+      setIsUploading(false);
+      console.error('Error in form submission:', error);
     }
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+  const isLoading = createMutation.isPending || updateMutation.isPending || uploadImageMutation.isPending;
 
   if (isLoadingNotification) {
     return (
@@ -369,40 +383,63 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
                   Image
                 </label>
                 
-                {/* Image Preview */}
-                {imageUrl && (
-                  <div className="mb-4">
-                    <div className="relative inline-block">
-                      <img
-                        src={imageUrl}
-                        alt="Notification preview"
-                        className="max-w-xs h-auto rounded-lg border border-gray-300"
-                      />
+                {/* Debug Authentication Button */}
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      debugAuthState();
+                      toast.info('Check console for authentication debug info');
+                    }}
+                    className="text-sm text-yellow-800 hover:text-yellow-900"
+                  >
+                    🔍 Debug Authentication
+                  </button>
+                </div>
+                
+                {/* File Upload */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Image
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      disabled={isUploading}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {isUploading && (
+                      <span className="text-blue-600 text-sm">Uploading...</span>
+                    )}
+                  </div>
+                  {imagePreview && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                      <img src={imagePreview} alt="Preview" className="max-w-sm h-auto" />
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 focus:outline-none"
-                        title="Remove image"
+                        className="mt-2 text-xs text-blue-600 hover:text-blue-800"
                       >
-                        <FontAwesomeIcon icon={faTrash} className="w-3 h-3" />
+                        <FontAwesomeIcon icon={faTimes} className="mr-1" /> Remove Image
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {/* Upload Button */}
-                <div className="flex flex-col space-y-2">
-                  <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                    <FontAwesomeIcon icon={faUpload} className="w-4 h-4 mr-2" />
-                    {imageUrl ? 'Change Image' : 'Upload Image'}
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/jpeg,image/png,image/gif"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
-                  <p className="text-xs text-gray-500">JPG, PNG, GIF up to 5MB</p>
+                  )}
+                  {imageData && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                      <p className="text-sm text-green-700">
+                        ✓ Image uploaded successfully
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="mt-1 text-xs text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -481,22 +518,22 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => handleSearchInputChange(e.target.value)}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       className="flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-0"
                       placeholder="Search users by name or phone number..."
                     />
                   </div>
 
                   {/* Search Results */}
-                  {searchResults.length > 0 && (
+                  {filteredUsers.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                      {searchResults.map((user) => (
+                      {filteredUsers.map((user: User) => (
                         <div
                           key={user.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                           onClick={() => addUser(user)}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                         >
-                          <div className="font-medium">{user.name}</div>
+                          <div className="font-medium text-gray-900">{user.name}</div>
                           <div className="text-sm text-gray-600">{user.phone}</div>
                         </div>
                       ))}
