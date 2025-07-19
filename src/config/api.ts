@@ -23,7 +23,7 @@ export const API_CONFIG = {
     AUTH_REGISTER: '/api/v1/auth/register',
     AUTH_LOGOUT: '/api/v1/auth/logout',
     AUTH_ME: '/api/v1/auth/me',
-    AUTH_REFRESH: '/api/v1/auth/refresh-token',
+    AUTH_REFRESH: '/api/v1/auth/refresh',
     AUTH_SEND_OTP: '/api/v1/auth/send-otp',
 
     // Users

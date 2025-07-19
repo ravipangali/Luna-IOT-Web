@@ -2,8 +2,8 @@
 export const ENV_CONFIG = {
   // API Configuration
   API_HOST: import.meta.env.VITE_API_HOST || 'system.mylunago.com',
-  API_PORT: import.meta.env.VITE_API_PORT || '8080',
-  API_SECURE: false, // Use HTTP for now since server runs on port 8080
+  API_PORT: import.meta.env.VITE_API_PORT || '443', // Use HTTPS port
+  API_SECURE: true, // Use HTTPS for production
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'Luna IoT Tracking System',
@@ -14,11 +14,11 @@ export const ENV_CONFIG = {
   
   // Build URLs
   get API_BASE_URL() {
-    return `http://${this.API_HOST}:${this.API_PORT}`;
+    return `https://${this.API_HOST}`;
   },
   
   get WS_BASE_URL() {
-    return `ws://${this.API_HOST}:${this.API_PORT}/ws`;
+    return `wss://${this.API_HOST}/ws`;
   },
   
   get HEALTH_URL() {

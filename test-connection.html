@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luna IoT Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 Luna IoT Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>🔧 Configuration</h2>
+        <div id="config"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🏥 Health Check</h2>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 WebSocket Test</h2>
+        <button onclick="testWebSocket()">Test WebSocket Connection</button>
+        <div id="websocket-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 API Test</h2>
+        <button onclick="testAPI()">Test API Endpoints</button>
+        <div id="api-result"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const config = {
+            apiBaseUrl: 'https://system.mylunago.com',
+            wsUrl: 'wss://system.mylunago.com/ws',
+            healthUrl: 'https://system.mylunago.com/health'
+        };
+
+        // Display configuration
+        document.getElementById('config').innerHTML = `
+            <p><strong>API Base URL:</strong> <span class="info">${config.apiBaseUrl}</span></p>
+            <p><strong>WebSocket URL:</strong> <span class="info">${config.wsUrl}</span></p>
+            <p><strong>Health URL:</strong> <span class="info">${config.healthUrl}</span></p>
+        `;
+
+        // Test health endpoint
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = '<p class="info">Testing health endpoint...</p>';
+            
+            try {
+                const response = await fetch(config.healthUrl);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Health check successful!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Health check failed: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ Health check error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test WebSocket connection
+        function testWebSocket() {
+            const resultDiv = document.getElementById('websocket-result');
+            resultDiv.innerHTML = '<p class="info">Testing WebSocket connection...</p>';
+            
+            try {
+                const ws = new WebSocket(config.wsUrl);
+                
+                ws.onopen = function() {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ WebSocket connection opened!</p>
+                        <p class="info">Note: This will close immediately as no authentication token is provided.</p>
+                    `;
+                    ws.close();
+                };
+                
+                ws.onerror = function(error) {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ WebSocket connection error: ${error}</p>
+                        <p class="info">This is expected without authentication token.</p>
+                    `;
+                };
+                
+                ws.onclose = function(event) {
+                    if (event.code === 1006) {
+                        resultDiv.innerHTML += `
+                            <p class="info">WebSocket closed (expected without auth token)</p>
+                        `;
+                    }
+                };
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ WebSocket error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test API endpoints
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<p class="info">Testing API endpoints...</p>';
+            
+            const endpoints = [
+                '/api/v1/users',
+                '/api/v1/devices',
+                '/api/v1/vehicles'
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${config.apiBaseUrl}${endpoint}`);
+                    if (response.status === 401) {
+                        results.push(`✅ ${endpoint} - Requires authentication (expected)`);
+                    } else if (response.ok) {
+                        results.push(`✅ ${endpoint} - Accessible`);
+                    } else {
+                        results.push(`❌ ${endpoint} - ${response.status}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${endpoint} - ${error.message}`);
+                }
+            }
+            
+            resultDiv.innerHTML = `
+                <p class="info">API endpoint test results:</p>
+                <ul>
+                    ${results.map(result => `<li>${result}</li>`).join('')}
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html> 

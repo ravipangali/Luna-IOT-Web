@@ -54,15 +54,15 @@ class ApiService {
       console.log('🔧 API Service this.baseURL length:', this.baseURL?.length);
     } catch (error) {
       console.error('🔧 ERROR: Failed to initialize baseURL:', error);
-      // Fallback to HTTP
-      this.baseURL = 'http://system.mylunago.com:8080';
+      // Fallback to HTTPS
+      this.baseURL = 'https://system.mylunago.com';
       console.log('🔧 API Service using fallback base URL:', this.baseURL);
     }
     
     // Final validation to ensure baseURL is always valid
     if (!this.baseURL || this.baseURL.includes('undefined')) {
       console.error('🔧 CRITICAL ERROR: baseURL is still invalid after initialization:', this.baseURL);
-      this.baseURL = 'http://system.mylunago.com:8080';
+      this.baseURL = 'https://system.mylunago.com';
       console.log(' API Service forced to fallback base URL:', this.baseURL);
     }
     
@@ -76,7 +76,7 @@ class ApiService {
 
   // Get the base URL
   getBaseURL(): string {
-    return this.baseURL || 'http://system.mylunago.com:8080';
+    return this.baseURL || 'https://system.mylunago.com';
   }
 
   // Handle response with proper error handling
