@@ -1,9 +1,9 @@
 // Environment configuration for Luna IoT Frontend
 export const ENV_CONFIG = {
   // API Configuration
-  API_HOST: import.meta.env.VITE_API_HOST || '84.247.131.246',
+  API_HOST: import.meta.env.VITE_API_HOST || 'system.mylunago.com',
   API_PORT: import.meta.env.VITE_API_PORT || '8080',
-  API_SECURE: false, // Always use HTTP
+  API_SECURE: false, // Use HTTP for now since server runs on port 8080
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'Luna IoT Tracking System',

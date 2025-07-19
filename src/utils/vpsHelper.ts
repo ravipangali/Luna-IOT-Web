@@ -26,7 +26,7 @@ function isVPSEnvironment(): boolean {
   const hostname = window.location.hostname;
   
   // Local development indicators
-  if (hostname === '84.247.131.246') {
+  if (hostname === 'system.mylunago.com') {
     return false;
   }
   
@@ -55,7 +55,7 @@ export function getBackendConfig(): VPSConfig {
     // Additional validation to ensure no undefined values
     if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
       // Force fallback values
-      config.host = '84.247.131.246';
+      config.host = 'system.mylunago.com';
       config.httpPort = '8080';
       config.wsPort = '8080';
       config.isSecure = false;
@@ -67,7 +67,7 @@ export function getBackendConfig(): VPSConfig {
   // Check if window is available (for SSR compatibility)
   if (typeof window === 'undefined') {
     const config = {
-      host: '84.247.131.246',
+      host: 'system.mylunago.com',
       httpPort: '8080',
       wsPort: '8080',
       isSecure: false
@@ -76,7 +76,7 @@ export function getBackendConfig(): VPSConfig {
     // Additional validation to ensure no undefined values
     if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
       // Force fallback values
-      config.host = '84.247.131.246';
+      config.host = 'system.mylunago.com';
       config.httpPort = '8080';
       config.wsPort = '8080';
       config.isSecure = false;
@@ -89,20 +89,20 @@ export function getBackendConfig(): VPSConfig {
   if (isVPSEnvironment()) {
     // Use current hostname as backend (assumes frontend and backend on same VPS)
     const config = {
-      host: window.location.hostname || '84.247.131.246',
+      host: window.location.hostname || 'system.mylunago.com',
       httpPort: '8080',
       wsPort: '8080',
       isSecure: window.location.protocol === 'https:'
     };
     
-    // Force use of the correct backend IP for now
-    config.host = '84.247.131.246';
+    // Force use of the correct backend host for now
+    config.host = 'system.mylunago.com';
     config.isSecure = false;
     
     // Additional validation to ensure no undefined values
     if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
       // Force fallback values
-      config.host = '84.247.131.246';
+      config.host = 'system.mylunago.com';
       config.httpPort = '8080';
       config.wsPort = '8080';
       config.isSecure = false;
@@ -111,22 +111,22 @@ export function getBackendConfig(): VPSConfig {
     return config;
   }
   
-  // Default to localhost for development
+  // Default configuration
   const config = {
-    host: '84.247.131.246',
+    host: 'system.mylunago.com',
     httpPort: '8080',
     wsPort: '8080',
     isSecure: false
   };
   
-  // Always use the correct backend IP
-  config.host = '84.247.131.246';
+  // Always use the correct backend host
+  config.host = 'system.mylunago.com';
   config.isSecure = false;
   
   // Additional validation to ensure no undefined values
   if (config.host === 'undefined' || config.httpPort === 'undefined' || config.wsPort === 'undefined') {
     // Force fallback values
-    config.host = '84.247.131.246';
+    config.host = 'system.mylunago.com';
     config.httpPort = '8080';
     config.wsPort = '8080';
     config.isSecure = false;
@@ -147,7 +147,7 @@ export function buildAPIUrls() {
       config.host.trim() === '' || config.httpPort.trim() === '' || config.wsPort.trim() === '') {
     // Fallback to safe defaults
     const fallbackConfig = {
-      host: '84.247.131.246',
+      host: 'system.mylunago.com',
       httpPort: '8080',
       wsPort: '8080',
       isSecure: false
@@ -158,7 +158,7 @@ export function buildAPIUrls() {
     
     return {
       baseURL: `${protocol}://${fallbackConfig.host}:${fallbackConfig.httpPort}`,
-      wsURL: `${wsProtocol}://${fallbackConfig.host}:${fallbackConfig.wsPort}`,
+      wsURL: `${wsProtocol}://${fallbackConfig.host}:${fallbackConfig.wsPort}/ws`,
       healthURL: `${protocol}://${fallbackConfig.host}:${fallbackConfig.httpPort}/health`
     };
   }
@@ -168,16 +168,16 @@ export function buildAPIUrls() {
   
   const urls = {
     baseURL: `${protocol}://${config.host}:${config.httpPort}`,
-    wsURL: `${wsProtocol}://${config.host}:${config.wsPort}`,
+    wsURL: `${wsProtocol}://${config.host}:${config.wsPort}/ws`,
     healthURL: `${protocol}://${config.host}:${config.httpPort}/health`
   };
   
   // Final validation to ensure no undefined values in URLs
   if (urls.baseURL.includes('undefined') || urls.wsURL.includes('undefined') || urls.healthURL.includes('undefined')) {
     // Use fallback URLs
-    urls.baseURL = 'http://84.247.131.246:8080';
-    urls.wsURL = 'ws://84.247.131.246:8080';
-    urls.healthURL = 'http://84.247.131.246:8080/health';
+    urls.baseURL = 'http://system.mylunago.com:8080';
+    urls.wsURL = 'ws://system.mylunago.com:8080/ws';
+    urls.healthURL = 'http://system.mylunago.com:8080/health';
   }
   
   return urls;
@@ -243,13 +243,13 @@ export function logConfiguration() {
  * Generates environment configuration for deployment
  */
 export function generateEnvConfig(vpsIP?: string): string {
-  const ip = vpsIP || '84.247.131.246';
+  const ip = vpsIP || 'system.mylunago.com';
   return `# Luna IoT Frontend Environment Configuration
 # Copy this to your .env file
 
 # API Configuration
 VITE_API_HOST=${ip}
-VITE_API_PORT=8080
+VITE_API_PORT=443
 VITE_API_SECURE=false
 
 # Development Configuration

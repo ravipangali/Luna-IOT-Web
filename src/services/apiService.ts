@@ -55,14 +55,14 @@ class ApiService {
     } catch (error) {
       console.error('🔧 ERROR: Failed to initialize baseURL:', error);
       // Fallback to HTTP
-      this.baseURL = 'http://84.247.131.246:8080';
+      this.baseURL = 'http://system.mylunago.com:8080';
       console.log('🔧 API Service using fallback base URL:', this.baseURL);
     }
     
     // Final validation to ensure baseURL is always valid
     if (!this.baseURL || this.baseURL.includes('undefined')) {
       console.error('🔧 CRITICAL ERROR: baseURL is still invalid after initialization:', this.baseURL);
-      this.baseURL = 'http://84.247.131.246:8080';
+      this.baseURL = 'http://system.mylunago.com:8080';
       console.log(' API Service forced to fallback base URL:', this.baseURL);
     }
     
@@ -74,12 +74,9 @@ class ApiService {
     return authService.getAuthHeaders();
   }
 
-  // Get base URL for debugging
-  public getBaseURL(): string {
-    if (!this.baseURL) {
-      this.initializeBaseURL();
-    }
-    return this.baseURL || 'http://84.247.131.246:8080';
+  // Get the base URL
+  getBaseURL(): string {
+    return this.baseURL || 'http://system.mylunago.com:8080';
   }
 
   // Handle response with proper error handling

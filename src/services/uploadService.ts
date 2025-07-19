@@ -14,7 +14,7 @@ class UploadService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = 'http://84.247.131.246:8080';
+    this.baseURL = 'https://system.mylunago.com';
   }
 
   async uploadNotificationImage(file: File): Promise<UploadResponse> {

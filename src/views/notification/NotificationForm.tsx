@@ -338,10 +338,9 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
                     onChange={(e) => setType(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   >
-                    <option value="system_notification">System Notification</option>
-                    <option value="alert">Alert</option>
-                    <option value="announcement">Announcement</option>
-                    <option value="reminder">Reminder</option>
+                    <option value="notification">📱 Notification (Default Sound)</option>
+                    <option value="alert">⚠️ Alert (Custom Sound)</option>
+                    <option value="alarm">🚨 Alarm (Continuous Vibration/Sound)</option>
                   </select>
                 </div>
 
@@ -453,13 +452,9 @@ const NotificationForm: React.FC<NotificationFormProps> = ({ isEdit = false, not
                   onChange={(e) => setSound(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
-                  <option value="default">Default</option>
-                  <option value="alert">Alert</option>
-                  <option value="notification">Notification</option>
-                  <option value="ringtone">Ringtone</option>
-                  <option value="chime">Chime</option>
-                  <option value="bell">Bell</option>
-                  <option value="none">None (Silent)</option>
+                  <option value="default">🔊 Default (System Sound)</option>
+                  <option value="alert">⚠️ Alert Sound</option>
+                  <option value="alarm">🚨 Alarm Sound</option>
                 </select>
               </div>
 

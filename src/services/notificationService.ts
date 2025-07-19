@@ -1,5 +1,4 @@
 import { apiService } from './apiService';
-import { APP_CONFIG } from '../config/app_config';
 import { ENV_CONFIG } from '../config/environment';
 
 export interface CreateNotificationRequest {
@@ -172,7 +171,7 @@ class NotificationService {
     }
     // Test direct fetch to verify the URL
     try {
-      const testUrl = 'http://84.247.131.246:8080/health';
+      const testUrl = 'https://system.mylunago.com/health';
       await fetch(testUrl);
     } catch {
       // Removed debug logs
@@ -197,7 +196,8 @@ class NotificationService {
     data?: Record<string, unknown>;
     priority?: 'high' | 'normal';
   }): Promise<SendNotificationToDeviceResponse> {
-    const endpoint = `https://ravipangali.com.np/user/api/firebase/apps/${APP_CONFIG.RP_FIREBASE_APP_ID}/notifications/`;
+    // Use backend endpoint instead of direct Ravipangali API call
+    const endpoint = `${this.baseEndpoint}/send-device`;
     
     // Process image_url to include backend base URL if it's a relative path
     let processedImageUrl = image_url;
@@ -207,8 +207,6 @@ class NotificationService {
     }
     
     const payload = {
-      email: APP_CONFIG.RP_ACCOUNT_EMAIL,
-      password: APP_CONFIG.RP_ACCOUNT_PASSWORD,
       title,
       body,
       tokens,
@@ -216,13 +214,9 @@ class NotificationService {
       data,
       priority,
     };
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-    return result;
+    
+    const response = await apiService.post<SendNotificationToDeviceResponse>(endpoint, payload);
+    return response;
   }
 }
 
